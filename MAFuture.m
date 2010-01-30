@@ -48,6 +48,8 @@
             id obj = block();
             [_lock lock];
             _value = [obj retain];
+            [_block release];
+            _block = nil;
             _resolved = YES;
             [_lock unlockWithCondition: 1];
         });
@@ -73,6 +75,8 @@
     if(_lazy && !_resolved)
     {
         _value = [_block() retain];
+        [_block release];
+        _block = nil;
         _resolved = YES;
     }
     [_lock unlock];
