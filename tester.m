@@ -9,14 +9,37 @@ int main(int argc, char **argv)
     
     @try
     {
-        NSLog(@"one");
-        NSString *s = MACompoundFuture(^{ sleep(1); return @"three"; });
-        NSLog(@"two: %p", s);
-        NSString *s2 = [s substringFromIndex: 1];
-        NSLog(@"%lld", (long long)[s2 length]);
-        NSLog(@"%lld", (long long)[s length]);
-        NSString *ps = [NSString stringWithFormat: @"%@", s];
-        NSLog(@"%@", ps);
+        
+        NSLog(@"start");
+        NSString *future = MAFuture(^{
+            fprintf(stderr, "Computing future\n");
+            usleep(100000);
+            return @"future result";
+        });
+        NSLog(@"future created");
+        NSString *lazyFuture = MALazyFuture(^{
+            fprintf(stderr, "Computing lazy future\n");
+            usleep(100000);
+            return @"lazy future result";
+        });
+        NSLog(@"lazy future created");
+        NSString *compoundFuture = MACompoundFuture(^{
+            fprintf(stderr, "Computing compound future\n");
+            usleep(100000);
+            return @"compound future result";
+        });
+        NSLog(@"compound future created");
+        NSString *compoundLazyFuture = MACompoundLazyFuture(^{
+            fprintf(stderr, "Computing compound lazy future\n");
+            usleep(100000);
+            return @"compound future result";
+        });
+        NSLog(@"compound lazy future created");
+        
+        NSLog(@"future: %@", future);
+        NSLog(@"lazy future: %@", lazyFuture);
+        NSLog(@"compound future: %@", [compoundFuture stringByAppendingString: @" suffix"]);
+        NSLog(@"compound lazy future: %@", [compoundLazyFuture stringByAppendingString: @" suffix"]);
     }
     @catch(id exception)
     {

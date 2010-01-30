@@ -18,10 +18,12 @@
 @interface _MABlockFuture : NSProxy
 {
     id (^_block)(void);
+    BOOL _lazy;
+    BOOL _resolved;
     id _value;
     NSConditionLock *_lock;
 }
-- (id)initWithBlock: (id (^)(void))block;
+- (id)initWithBlock: (id (^)(void))block lazy: (BOOL)lazy;
 - (id)_resolveFuture;
 @end
 
@@ -35,17 +37,20 @@
     class_replaceMethod(self, @selector(description), forwarder, method_getTypeEncoding(m));
 }
 
-- (id)initWithBlock: (id (^)(void))block
+- (id)initWithBlock: (id (^)(void))block lazy: (BOOL)lazy
 {
     _block = [block copy];
+    _lazy = lazy;
     _lock = [[NSConditionLock alloc] init];
     
-    dispatch_async(dispatch_get_global_queue(0, 0), ^{
-        id obj = block();
-        [_lock lock];
-        _value = [obj retain];
-        [_lock unlockWithCondition: 1];
-    });
+    if(!lazy)
+        dispatch_async(dispatch_get_global_queue(0, 0), ^{
+            id obj = block();
+            [_lock lock];
+            _value = [obj retain];
+            _resolved = YES;
+            [_lock unlockWithCondition: 1];
+        });
     
     return self;
 }
@@ -60,7 +65,16 @@
 
 - (id)_resolveFuture
 {
-    [_lock lockWhenCondition: 1];
+    if(_lazy)
+        [_lock lock];
+    else
+        [_lock lockWhenCondition: 1];
+    
+    if(_lazy && !_resolved)
+    {
+        _value = [_block() retain];
+        _resolved = YES;
+    }
     [_lock unlock];
     return _value;
 }
@@ -229,13 +243,31 @@
 #undef MAFuture
 id MAFuture(id (^block)(void))
 {
-    return [[[_MABlockFuture alloc] initWithBlock: block] autorelease];
+    return [[[_MABlockFuture alloc] initWithBlock: block lazy: NO] autorelease];
+}
+
+#undef MALazyFuture
+id MALazyFuture(id (^block)(void))
+{
+    return [[[_MABlockFuture alloc] initWithBlock: block lazy: YES] autorelease];
 }
 
 #undef MACompoundFuture
 id MACompoundFuture(id (^block)(void))
 {
-    _MABlockFuture *blockFuture = [[_MABlockFuture alloc] initWithBlock: block];
+    _MABlockFuture *blockFuture = [[_MABlockFuture alloc] initWithBlock: block lazy: NO];
+    
+    _MACompoundFuture *compoundFuture = [[_MACompoundFuture alloc] initWithParent: blockFuture derivationInvocation: nil];
+    
+    [blockFuture release];
+    
+    return [compoundFuture autorelease];
+}
+
+#undef MACompoundLazyFuture
+id MACompoundLazyFuture(id (^block)(void))
+{
+    _MABlockFuture *blockFuture = [[_MABlockFuture alloc] initWithBlock: block lazy: YES];
     
     _MACompoundFuture *compoundFuture = [[_MACompoundFuture alloc] initWithParent: blockFuture derivationInvocation: nil];
     
