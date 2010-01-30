@@ -85,6 +85,9 @@
             }
         }
     }
+    
+    free(classes);
+    
     return sig;
 }
 
