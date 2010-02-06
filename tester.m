@@ -5,6 +5,9 @@
 #import "MACompoundFuture.h"
 #import "MAFuture.h"
 
+// make NSLog properly reentrant
+#define NSLog(...) NSLog(@"%@", [NSString stringWithFormat: __VA_ARGS__])
+
 int main(int argc, char **argv)
 {
     [NSAutoreleasePool new];

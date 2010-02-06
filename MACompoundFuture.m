@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 
+#import "MABaseFuture.h"
 #import "MAFuture.h"
 #import "MAMethodSignatureCache.h"
 
@@ -14,37 +15,26 @@
 #endif
 
 
-@interface _MACompoundFuture : NSProxy
+@interface _MACompoundFuture : MABaseFuture
 {
-    id _parentFuture;
+    MABaseFuture *_parentFuture;
     NSInvocation *_derivationInvocation;
-    id _value;
-    NSConditionLock *_lock;
 }
 - (id)initWithParent: (id)parent derivationInvocation: (NSInvocation *)invocation;
-- (id)_resolveFuture;
 @end
 
 @implementation _MACompoundFuture
 
-+ (void)initialize
-{
-    // de-override -description
-    Method m = class_getInstanceMethod(self, @selector(description));
-    IMP forwarder = class_getMethodImplementation(self, @selector(thisMethodDoesNotExist));
-    class_replaceMethod(self, @selector(description), forwarder, method_getTypeEncoding(m));
-}
-
-- (id)initWithParent: (id)parent derivationInvocation: (NSInvocation *)invocation
+- (id)initWithParent: (MABaseFuture *)parent derivationInvocation: (NSInvocation *)invocation
 {
     NSParameterAssert(!invocation || [[invocation methodSignature] methodReturnType][0] == @encode(id)[0]);
     
-    _parentFuture = [parent retain];
-    _derivationInvocation = [invocation retain];
-    [invocation retainArguments];
-    
-    _lock = [[NSConditionLock alloc] init];
-    
+    if((self = [self init]))
+    {
+        _parentFuture = [parent retain];
+        _derivationInvocation = [invocation retain];
+        [invocation retainArguments];
+    }
     return self;
 }
 
@@ -52,37 +42,36 @@
 {
     [_parentFuture release];
     [_derivationInvocation release];
-    [_value release];
-    [_lock release];
     [super dealloc];
 }
 
-- (id)_resolveFuture
+- (id)resolveFuture
 {
     [_lock lock];
-    if([_lock condition] != 1)
+    if(![self futureHasResolved])
     {
         LOG(@"%p resolving against %@ with %@", self, NSStringFromClass(object_getClass(_parentFuture)), NSStringFromSelector([_derivationInvocation selector]));
         
+        id value = nil;
         if(_derivationInvocation)
         {
-            [_derivationInvocation invokeWithTarget: [_parentFuture _resolveFuture]];
-            [_derivationInvocation getReturnValue: &_value];
+            [_derivationInvocation invokeWithTarget: [_parentFuture resolveFuture]];
+            [_derivationInvocation getReturnValue: &value];
         }
         else
         {
             // no _derivationInvocation is a special case meaning to just get
             // the value directly from the parent future
-            _value = [_parentFuture _resolveFuture];
+            value = [_parentFuture resolveFuture];
         }
-        [_value retain];
+        [self setFutureValueUnlocked: value];
         
         [_parentFuture release];
         _parentFuture = nil;
         [_derivationInvocation release];
         _derivationInvocation = nil;
     }
-    [_lock unlockWithCondition: 1];
+    [_lock unlock];
     
     return _value;
 }
@@ -90,6 +79,7 @@
 - (BOOL)_canFutureSelector: (SEL)sel
 {
     NSMethodSignature *sig = [[MAMethodSignatureCache sharedCache] cachedMethodSignatureForSelector: sel];
+    
     if(!sig) return NO;
     else     return [sig methodReturnType][0] == @encode(id)[0];
 }
@@ -98,40 +88,33 @@
 {
     LOG(@"forwardingTargetForSelector: %p %@", self, NSStringFromSelector(sel));
     
-    id val;
-    [_lock lock];
-    val = _value;
-    [_lock unlock];
-    
-    if(val) return val;
-    
-    if([self _canFutureSelector: sel])
+    id value = [self futureValue];
+    if(value)
+        return value;
+    else if([self _canFutureSelector: sel])
         return nil;
     else
-        return [self _resolveFuture];
+        return [self resolveFuture];
 }
 
 - (BOOL)respondsToSelector: (SEL)sel
 {
     LOG(@"respondsToSelector: %p %@", self, NSStringFromSelector(sel));
     
-    return [[self _resolveFuture] respondsToSelector: sel];
+    return [[self resolveFuture] respondsToSelector: sel];
 }
 
 - (NSMethodSignature *)methodSignatureForSelector: (SEL)sel
 {
     LOG(@"methodSignatureForSelector: %p %@", self, NSStringFromSelector(sel));
     
-    NSMethodSignature *sig = nil;
-    [_lock lock];
-    sig = [_value methodSignatureForSelector: sel];
-    [_lock unlock];
+    NSMethodSignature *sig = [[self futureValue] methodSignatureForSelector: sel];
     
     if(!sig)
         sig = [[MAMethodSignatureCache sharedCache] cachedMethodSignatureForSelector: sel];
     
     if(!sig)
-        sig = [[self _resolveFuture] methodSignatureForSelector: sel];
+        sig = [[self resolveFuture] methodSignatureForSelector: sel];
     
     return sig;
 }
@@ -142,15 +125,12 @@
     
     NSParameterAssert([self _canFutureSelector: [invocation selector]]);
     
-    id val;
-    [_lock lock];
-    val = _value;
-    [_lock unlock];
+    id value = [self futureValue];
     
-    if(val)
+    if(value)
     {
-        LOG(@"forwardInvocation: %p forwarding to %p", invocation, val);
-        [invocation invokeWithTarget: val];
+        LOG(@"forwardInvocation: %p forwarding to %p", invocation, value);
+        [invocation invokeWithTarget: value];
     }
     else
     {
