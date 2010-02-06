@@ -123,21 +123,30 @@
 {
     LOG(@"forwardInvocation: %p %@", self, NSStringFromSelector([invocation selector]));
     
-    NSParameterAssert([self _canFutureSelector: [invocation selector]]);
-    
-    id value = [self futureValue];
+    [_lock lock];
+    id value = _value;
+    BOOL resolved = _resolved;
+    [_lock unlock];
     
     if(value)
     {
         LOG(@"forwardInvocation: %p forwarding to %p", invocation, value);
         [invocation invokeWithTarget: value];
     }
-    else
+    else if(!resolved)
     {
         _MACompoundFuture *future = [[_MACompoundFuture alloc] initWithParent: self derivationInvocation: invocation];
         LOG(@"forwardInvocation: %p creating new compound future %p", invocation, future);
         [invocation setReturnValue: &future];
         [future release];
+    }
+    else
+    {
+        // resolved, no value, means we're messaging nil
+        // zero-fill the return and done
+        char returnValue[[[invocation methodSignature] methodReturnLength]];
+        bzero(returnValue, sizeof(returnValue));
+        [invocation setReturnValue: returnValue];
     }
 }
 

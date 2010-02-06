@@ -14,7 +14,6 @@ int main(int argc, char **argv)
     
     @try
     {
-        
         NSLog(@"start");
         NSString *future = MAFuture(^{
             NSLog(@"Computing future\n");
@@ -40,6 +39,7 @@ int main(int argc, char **argv)
             return @"compound future result";
         });
         NSLog(@"compound lazy future created");
+        id nilFuture = MACompoundFuture(^{ return nil; });
         
         NSLog(@"future: %@", future);
         NSLog(@"lazy future: %@", lazyFuture);
@@ -57,6 +57,7 @@ int main(int argc, char **argv)
             return @"future result";
         });
         NSLog(@"%p == %p? %llx %llx %s", future1, future2, (long long)[future1 hash], (long long)[future2 hash], [future1 isEqual: future2] ? "YES" : "NO");
+        NSLog(@"nil future: %@", nilFuture);
     }
     @catch(id exception)
     {
