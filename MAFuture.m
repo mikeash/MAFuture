@@ -3,6 +3,8 @@
 
 #import "MABaseFuture.h"
 #import "MAFuture.h"
+#import "MAFutureInternal.h"
+#import "MAMethodSignatureCache.h"
 
 
 #define ENABLE_LOGGING 0
@@ -12,11 +14,6 @@
 #else
 #define LOG(...)
 #endif
-
-@interface _MASimpleFuture : MABaseFuture
-{
-}
-@end
 
 @implementation _MASimpleFuture
 
@@ -29,6 +26,20 @@
 - (BOOL)respondsToSelector: (SEL)sel
 {
     return [[self resolveFuture] respondsToSelector: sel];
+}
+
+- (NSMethodSignature *)methodSignatureForSelector: (SEL)sel
+{
+    return [[MAMethodSignatureCache sharedCache] cachedMethodSignatureForSelector: sel];
+}
+
+- (void)forwardInvocation: (NSInvocation *)inv
+{
+    // this gets hit if the future resolves to nil
+    // zero-fill the return value
+    char returnValue[[[inv methodSignature] methodReturnLength]];
+    bzero(returnValue, sizeof(returnValue));
+    [inv setReturnValue: returnValue];
 }
 
 @end
@@ -59,12 +70,6 @@
 
 @end
 
-
-@interface _MALazyBlockFuture : _MASimpleFuture
-{
-    id (^_block)(void);
-}
-@end
 
 @implementation _MALazyBlockFuture
 

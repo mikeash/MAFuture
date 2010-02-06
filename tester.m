@@ -75,7 +75,9 @@ int main(int argc, char **argv)
             return @"compound future result";
         });
         NSLog(@"compound lazy future created");
-        id nilFuture = MACompoundFuture(^{ return nil; });
+        
+        id nilFuture = MAFuture(^{ return nil; });
+        id nilCompoundFuture = MACompoundFuture(^{ return nil; });
         
         NSLog(@"future: %@", future);
         NSLog(@"lazy future: %@", lazyFuture);
@@ -94,6 +96,7 @@ int main(int argc, char **argv)
         });
         NSLog(@"%p == %p? %llx %llx %s", future1, future2, (long long)[future1 hash], (long long)[future2 hash], [future1 isEqual: future2] ? "YES" : "NO");
         NSLog(@"nil future: %@", nilFuture);
+        NSLog(@"nil compound future: %@", nilCompoundFuture);
         
         TestOutParameters();
     }
