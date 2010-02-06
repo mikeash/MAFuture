@@ -3,13 +3,13 @@
 #import "MAMethodSignatureCache.h"
 
 
-@interface NSLock (BlockAdditions)
+@interface NSRecursiveLock (BlockAdditions)
 
 - (void)ma_do: (dispatch_block_t)block;
 
 @end
 
-@implementation NSLock (BlockAdditions)
+@implementation NSRecursiveLock (BlockAdditions)
 
 - (void)ma_do: (dispatch_block_t)block
 {
@@ -39,7 +39,7 @@
                   initWithKeyOptions: NSPointerFunctionsOpaqueMemory | NSPointerFunctionsOpaquePersonality
                   valueOptions: NSPointerFunctionsStrongMemory | NSPointerFunctionsObjectPersonality
                   capacity: 0];
-        _lock = [[NSLock alloc] init];
+        _lock = [[NSRecursiveLock alloc] init];
         [[NSNotificationCenter defaultCenter]
          addObserver: self
          selector: @selector( _clearCache )

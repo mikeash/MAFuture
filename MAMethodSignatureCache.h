@@ -4,7 +4,7 @@
 @interface MAMethodSignatureCache : NSObject
 {
     NSMapTable *_cache;
-    NSLock *_lock;
+    NSRecursiveLock *_lock;
 }
 
 + (MAMethodSignatureCache *)sharedCache;
