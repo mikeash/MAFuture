@@ -1,7 +1,9 @@
 #import <Foundation/Foundation.h>
 
+#import "MAProxy.h"
 
-@interface MABaseFuture : NSProxy
+
+@interface MABaseFuture : MAProxy
 {
     id _value;
     NSCondition *_lock;

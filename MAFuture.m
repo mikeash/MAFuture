@@ -5,7 +5,7 @@
 #import "MAFuture.h"
 
 
-#define ENABLE_LOGGING 0
+#define ENABLE_LOGGING 1
 
 #if ENABLE_LOGGING
 #define LOG(...) NSLog(__VA_ARGS__)
@@ -66,6 +66,7 @@
 
 - (id)forwardingTargetForSelector: (SEL)sel
 {
+    LOG(@"%p forwardingTargetForSelector: %@, resolving future", self, NSStringFromSelector(sel));
     return [self resolveFuture];
 }
 

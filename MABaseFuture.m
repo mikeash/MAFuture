@@ -5,16 +5,6 @@
 
 @implementation MABaseFuture
 
-+ (void)initialize
-{
-    // NSProxy implements -description for some boneheaded reason
-    // this effectively removes that implementation by re-pointing
-    // our IMP to point to the implementation of a non-existent method
-    Method m = class_getInstanceMethod(self, @selector(description));
-    IMP forwarder = class_getMethodImplementation(self, @selector(thisMethodDoesNotExist));
-    class_replaceMethod(self, @selector(description), forwarder, method_getTypeEncoding(m));
-}
-
 - (id)init
 {
     _lock = [[NSCondition alloc] init];
@@ -81,6 +71,15 @@
     NSLog(@"-[MABaseFuture resolveFuture] called, this should never happen! Did you forget to implement -[%@ resolveFuture]?", isa);
     NSParameterAssert(0);
     return nil;
+}
+
+- (Class)class
+{
+    Class c = [[self resolveFuture] class];
+    if([NSStringFromClass(c) hasPrefix: @"NSCF"])
+        return [c superclass];
+    else
+        return c;
 }
 
 @end
