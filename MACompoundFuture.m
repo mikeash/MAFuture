@@ -1,8 +1,8 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 
-#import "MABaseFuture.h"
 #import "MAFuture.h"
+#import "MAFutureInternal.h"
 #import "MAMethodSignatureCache.h"
 
 
@@ -15,73 +15,32 @@
 #endif
 
 
-@interface _MACompoundFuture : MABaseFuture
+@interface _MACompoundFuture : _MALazyBlockFuture
 {
-    MABaseFuture *_parentFuture;
-    NSInvocation *_derivationInvocation;
 }
-- (id)initWithParent: (id)parent derivationInvocation: (NSInvocation *)invocation;
 @end
 
 @implementation _MACompoundFuture
-
-- (id)initWithParent: (MABaseFuture *)parent derivationInvocation: (NSInvocation *)invocation
-{
-    NSParameterAssert(!invocation || [[invocation methodSignature] methodReturnType][0] == @encode(id)[0]);
-    
-    if((self = [self init]))
-    {
-        _parentFuture = [parent retain];
-        _derivationInvocation = [invocation retain];
-        [invocation retainArguments];
-    }
-    return self;
-}
-
-- (void)dealloc
-{
-    [_parentFuture release];
-    [_derivationInvocation release];
-    [super dealloc];
-}
-
-- (id)resolveFuture
-{
-    [_lock lock];
-    if(![self futureHasResolved])
-    {
-        LOG(@"%p resolving against %@ with %@", self, NSStringFromClass(object_getClass(_parentFuture)), NSStringFromSelector([_derivationInvocation selector]));
-        
-        id value = nil;
-        if(_derivationInvocation)
-        {
-            [_derivationInvocation invokeWithTarget: [_parentFuture resolveFuture]];
-            [_derivationInvocation getReturnValue: &value];
-        }
-        else
-        {
-            // no _derivationInvocation is a special case meaning to just get
-            // the value directly from the parent future
-            value = [_parentFuture resolveFuture];
-        }
-        [self setFutureValueUnlocked: value];
-        
-        [_parentFuture release];
-        _parentFuture = nil;
-        [_derivationInvocation release];
-        _derivationInvocation = nil;
-    }
-    [_lock unlock];
-    
-    return _value;
-}
 
 - (BOOL)_canFutureSelector: (SEL)sel
 {
     NSMethodSignature *sig = [[MAMethodSignatureCache sharedCache] cachedMethodSignatureForSelector: sel];
     
     if(!sig) return NO;
-    else     return [sig methodReturnType][0] == @encode(id)[0];
+    else if([sig methodReturnType][0] != @encode(id)[0]) return NO;
+    
+    // it exists, returns an object, but does it return any non-objects by reference?
+    unsigned num = [sig numberOfArguments];
+    for(unsigned i = 2; i < num; i++)
+    {
+        const char *type = [sig getArgumentTypeAtIndex: i];
+        
+        // if it's a pointer to a non-object, bail out
+        if(type[0] == '^' && type[1] != '@')
+            return NO;
+    }
+    // we survived this far, all is well
+    return YES;
 }
 
 - (id)forwardingTargetForSelector: (SEL)sel
@@ -135,10 +94,71 @@
     }
     else if(!resolved)
     {
-        _MACompoundFuture *future = [[_MACompoundFuture alloc] initWithParent: self derivationInvocation: invocation];
-        LOG(@"forwardInvocation: %p creating new compound future %p", invocation, future);
-        [invocation setReturnValue: &future];
-        [future release];
+        // look for return-by-reference objects
+        _MALazyBlockFuture *invocationFuture = nil;
+        NSMethodSignature *sig = [invocation methodSignature];
+        unsigned num = [sig numberOfArguments];
+        for(unsigned i = 2; i < num; i++)
+        {
+            const char *type = [sig getArgumentTypeAtIndex: i];
+            if(type[0] == '^' && type[1] == '@')
+            {
+                // get the existing pointer-to-object
+                id *parameterValue;
+                [invocation getArgument: &parameterValue atIndex: i];
+                
+                // if it's NULL, then we don't need to do anything
+                if(parameterValue)
+                {
+                    LOG(@"forwardInvocation: %p found return-by-reference object at argument index %u", self, i);
+                    
+                    // allocate space to receive the final computed value
+                    NSMutableData *newParameterSpace = [NSMutableData dataWithLength: sizeof(id)];
+                    id *newParameterValue = [newParameterSpace mutableBytes];
+                    
+                    // set the parameter to point to the new space
+                    [invocation setArgument: &newParameterValue atIndex: i];
+                    
+                    // create a future to refer to the invocation, so that it
+                    // only gets invoked once no matter how many
+                    // compound futures reference it
+                    if(!invocationFuture)
+                        invocationFuture = [[_MALazyBlockFuture alloc] initWithBlock: ^{
+                            [invocation invokeWithTarget: [self resolveFuture]];
+                            return (id)nil;
+                        }];
+                    
+                    // create the compound future that we'll "return" in this argument
+                    _MACompoundFuture *parameterFuture = [[_MACompoundFuture alloc] initWithBlock: ^{
+                        [invocationFuture resolveFuture];
+                        // capture the NSMutableData to ensure that it stays live
+                        // interior pointer problem
+                        [newParameterSpace self];
+                        return *newParameterValue;
+                    }];
+                    
+                    // and now "return" it
+                    *parameterValue = parameterFuture;
+                    
+                    // memory management
+                    [parameterFuture autorelease];
+                }
+            }
+        }
+        
+        [invocation retainArguments];
+        _MACompoundFuture *returnFuture = [[_MACompoundFuture alloc] initWithBlock:^{
+            id value = nil;
+            if(invocationFuture)
+                [invocationFuture resolveFuture];
+            else
+                [invocation invokeWithTarget: [self resolveFuture]];
+            [invocation getReturnValue: &value];
+            return value;
+        }];
+        LOG(@"forwardInvocation: %p creating new compound future %p", invocation, returnFuture);
+        [invocation setReturnValue: &returnFuture];
+        [returnFuture release];
     }
     else
     {
@@ -157,7 +177,9 @@ id MACompoundFuture(id (^block)(void))
 {
     id blockFuture = MAFuture(block);
     
-    _MACompoundFuture *compoundFuture = [[_MACompoundFuture alloc] initWithParent: blockFuture derivationInvocation: nil];
+    _MACompoundFuture *compoundFuture = [[_MACompoundFuture alloc] initWithBlock: ^{
+        return [blockFuture resolveFuture];
+    }];
     
     return [compoundFuture autorelease];
 }
@@ -165,9 +187,7 @@ id MACompoundFuture(id (^block)(void))
 #undef MACompoundLazyFuture
 id MACompoundLazyFuture(id (^block)(void))
 {
-    id blockFuture = MALazyFuture(block);
-    
-    _MACompoundFuture *compoundFuture = [[_MACompoundFuture alloc] initWithParent: blockFuture derivationInvocation: nil];
+    _MACompoundFuture *compoundFuture = [[_MACompoundFuture alloc] initWithBlock: block];
     
     return [compoundFuture autorelease];
 }

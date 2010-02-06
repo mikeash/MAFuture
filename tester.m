@@ -8,6 +8,42 @@
 // make NSLog properly reentrant
 #define NSLog(...) NSLog(@"%@", [NSString stringWithFormat: __VA_ARGS__])
 
+
+@implementation NSObject (ObjectReturnAndPrimitiveByReference)
+
++ (NSString *)objectReturnAndPrimitiveByReference: (int *)outInt
+{
+    if(outInt)
+        *outInt = 42;
+    return @"object";
+}
+
+@end
+
+static void TestOutParameters(void)
+{
+    NSLog(@"Testing out parameters");
+
+    Class nsstring = MACompoundFuture(^{ usleep(100000); return [NSString class]; });
+    NSLog(@"string: %p", [nsstring string]);
+    
+    NSError *baderr = nil;
+    NSString *badstr = [nsstring stringWithContentsOfFile: @"/this/file/does/not/exist" encoding: NSUTF8StringEncoding error: &baderr];
+    NSError *gooderr = nil;
+    NSString *goodstr = [nsstring stringWithContentsOfFile: @"/etc/passwd" encoding: NSUTF8StringEncoding error: &gooderr];
+    NSLog(@"stringWithContentsOfFile, pointers: %p error: %p", badstr, baderr);
+    NSLog(@"stringWithContentsOfFile, descriptions: %@ error: %@", badstr, baderr);
+    NSLog(@"stringWithContentsOfFile, pointers: %p error: %p", goodstr, gooderr);
+    NSLog(@"stringWithContentsOfFile, descriptions: %@ error: %@", [goodstr substringToIndex: 2], gooderr);
+    
+    
+    Class nsobject = MACompoundFuture(^{ usleep(100000); return [NSObject class]; });
+    int x = 0;
+    NSString *str = [nsobject objectReturnAndPrimitiveByReference: &x];
+    NSLog(@"objectReturnAndPrimitiveByReference pointer: %p int: %d", str, x);
+    NSLog(@"objectReturnAndPrimitiveByReference description: %@ int: %d", str, x);
+}
+
 int main(int argc, char **argv)
 {
     [NSAutoreleasePool new];
@@ -58,6 +94,8 @@ int main(int argc, char **argv)
         });
         NSLog(@"%p == %p? %llx %llx %s", future1, future2, (long long)[future1 hash], (long long)[future2 hash], [future1 isEqual: future2] ? "YES" : "NO");
         NSLog(@"nil future: %@", nilFuture);
+        
+        TestOutParameters();
     }
     @catch(id exception)
     {
