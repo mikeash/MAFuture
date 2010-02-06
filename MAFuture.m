@@ -5,7 +5,7 @@
 #import "MAFuture.h"
 
 
-#define ENABLE_LOGGING 1
+#define ENABLE_LOGGING 0
 
 #if ENABLE_LOGGING
 #define LOG(...) NSLog(__VA_ARGS__)
@@ -15,53 +15,18 @@
 
 @interface _MABlockFuture : MABaseFuture
 {
-    id (^_block)(void);
-    BOOL _lazy;
 }
-- (id)initWithBlock: (id (^)(void))block lazy: (BOOL)lazy;
+- (id)initWithBlock: (id (^)(void))block;
 @end
 
 @implementation _MABlockFuture
 
-- (id)initWithBlock: (id (^)(void))block lazy: (BOOL)lazy
+- (id)initWithBlock: (id (^)(void))block
 {
     if((self = [self init]))
     {
-        _block = [block copy];
-        _lazy = lazy;
-        
-        if(!lazy)
-            dispatch_async(dispatch_get_global_queue(0, 0), ^{
-                [self setFutureValue: block()];
-            });
     }
     return self;
-}
-
-- (void)dealloc
-{
-    [_block release];
-    [super dealloc];
-}
-
-- (id)resolveFuture
-{
-    if(!_lazy)
-    {
-        return [self waitForFutureResolution];
-    }
-    else
-    {
-        [_lock lock];
-        if(![self futureHasResolved])
-        {
-            [self setFutureValueUnlocked: _block()];
-            [_block release];
-            _block = nil;
-        }
-        [_lock unlock];
-        return _value;
-    }
 }
 
 - (id)forwardingTargetForSelector: (SEL)sel
@@ -77,14 +42,79 @@
 
 @end
 
+
+@interface _MABackgroundBlockFuture : _MABlockFuture
+{
+}
+@end
+
+@implementation _MABackgroundBlockFuture
+
+- (id)initWithBlock: (id (^)(void))block
+{
+    if((self = [super initWithBlock: block]))
+    {
+        dispatch_async(dispatch_get_global_queue(0, 0), ^{
+            [self setFutureValue: block()];
+        });
+    }
+    return self;
+}
+
+- (id)resolveFuture
+{
+    return [self waitForFutureResolution];
+}
+
+@end
+
+
+@interface _MALazyBlockFuture : _MABlockFuture
+{
+    id (^_block)(void);
+}
+@end
+
+@implementation _MALazyBlockFuture
+
+- (id)initWithBlock: (id (^)(void))block
+{
+    if((self = [super initWithBlock: block]))
+    {
+        _block = [block copy];
+    }
+    return self;
+}
+
+- (void)dealloc
+{
+    [_block release];
+    [super dealloc];
+}
+
+- (id)resolveFuture
+{
+    [_lock lock];
+    if(![self futureHasResolved])
+    {
+        [self setFutureValueUnlocked: _block()];
+        [_block release];
+        _block = nil;
+    }
+    [_lock unlock];
+    return _value;
+}
+
+@end
+
 #undef MAFuture
 id MAFuture(id (^block)(void))
 {
-    return [[[_MABlockFuture alloc] initWithBlock: block lazy: NO] autorelease];
+    return [[[_MABackgroundBlockFuture alloc] initWithBlock: block] autorelease];
 }
 
 #undef MALazyFuture
 id MALazyFuture(id (^block)(void))
 {
-    return [[[_MABlockFuture alloc] initWithBlock: block lazy: YES] autorelease];
+    return [[[_MALazyBlockFuture alloc] initWithBlock: block] autorelease];
 }
