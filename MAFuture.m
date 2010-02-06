@@ -13,21 +13,12 @@
 #define LOG(...)
 #endif
 
-@interface _MABlockFuture : MABaseFuture
+@interface _MASimpleFuture : MABaseFuture
 {
 }
-- (id)initWithBlock: (id (^)(void))block;
 @end
 
-@implementation _MABlockFuture
-
-- (id)initWithBlock: (id (^)(void))block
-{
-    if((self = [self init]))
-    {
-    }
-    return self;
-}
+@implementation _MASimpleFuture
 
 - (id)forwardingTargetForSelector: (SEL)sel
 {
@@ -43,7 +34,7 @@
 @end
 
 
-@interface _MABackgroundBlockFuture : _MABlockFuture
+@interface _MABackgroundBlockFuture : _MASimpleFuture
 {
 }
 @end
@@ -52,7 +43,7 @@
 
 - (id)initWithBlock: (id (^)(void))block
 {
-    if((self = [super initWithBlock: block]))
+    if((self = [self init]))
     {
         dispatch_async(dispatch_get_global_queue(0, 0), ^{
             [self setFutureValue: block()];
@@ -69,7 +60,7 @@
 @end
 
 
-@interface _MALazyBlockFuture : _MABlockFuture
+@interface _MALazyBlockFuture : _MASimpleFuture
 {
     id (^_block)(void);
 }
@@ -79,7 +70,7 @@
 
 - (id)initWithBlock: (id (^)(void))block
 {
-    if((self = [super initWithBlock: block]))
+    if((self = [self init]))
     {
         _block = [block copy];
     }

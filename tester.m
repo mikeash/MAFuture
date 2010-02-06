@@ -19,12 +19,7 @@ int main(int argc, char **argv)
         NSString *future = MAFuture(^{
             NSLog(@"Computing future\n");
             usleep(100000);
-            return [NSString stringWithFormat:@"%d", 42];
-        });
-        NSString *future2 = MAFuture(^{
-            NSLog(@"Computing future\n");
-            usleep(100000);
-            return [NSString stringWithFormat:@"%d", 42];
+            return @"future result";
         });
         NSLog(@"future created");
         NSString *lazyFuture = MALazyFuture(^{
@@ -46,11 +41,22 @@ int main(int argc, char **argv)
         });
         NSLog(@"compound lazy future created");
         
-        NSLog(@"%p == %p? %llx %llx %s %s", future, future2, (long long)[future hash], (long long)[future2 hash], [future isEqual: future2] ? "YES" : "NO", [future isEqual: future2] ? "YES" : "NO");
         NSLog(@"future: %@", future);
         NSLog(@"lazy future: %@", lazyFuture);
         NSLog(@"compound future: %@", [compoundFuture stringByAppendingString: @" suffix"]);
         NSLog(@"compound lazy future: %@", [compoundLazyFuture stringByAppendingString: @" suffix"]);
+        
+        NSString *future1 = MAFuture(^{
+            NSLog(@"Computing future\n");
+            usleep(100000);
+            return @"future result";
+        });
+        NSString *future2 = MAFuture(^{
+            NSLog(@"Computing future\n");
+            usleep(100000);
+            return @"future result";
+        });
+        NSLog(@"%p == %p? %llx %llx %s", future1, future2, (long long)[future1 hash], (long long)[future2 hash], [future1 isEqual: future2] ? "YES" : "NO");
     }
     @catch(id exception)
     {
