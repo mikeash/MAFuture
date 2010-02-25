@@ -172,10 +172,10 @@
 
 @end
 
-#undef MACompoundFuture
-id MACompoundFuture(id (^block)(void))
+#undef MACompoundBackgroundFuture
+id MACompoundBackgroundFuture(id (^block)(void))
 {
-    id blockFuture = MAFuture(block);
+    id blockFuture = MABackgroundFuture(block);
     
     _MACompoundFuture *compoundFuture = [[_MACompoundFuture alloc] initWithBlock: ^{
         return [blockFuture resolveFuture];

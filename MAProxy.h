@@ -7,6 +7,7 @@
 + (id)alloc;
 
 - (void)dealloc;
+- (void)finalize;
 - (BOOL)isProxy;
 - (id)retain;
 - (void)release;

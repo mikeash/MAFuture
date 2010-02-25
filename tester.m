@@ -24,7 +24,7 @@ static void TestOutParameters(void)
 {
     NSLog(@"Testing out parameters");
 
-    Class nsstring = MACompoundFuture(^{ usleep(100000); return [NSString class]; });
+    Class nsstring = MACompoundBackgroundFuture(^{ usleep(100000); return [NSString class]; });
     NSLog(@"string: %p", [nsstring string]);
     
     NSError *baderr = nil;
@@ -37,7 +37,7 @@ static void TestOutParameters(void)
     NSLog(@"stringWithContentsOfFile, descriptions: %@ error: %@", [goodstr substringToIndex: 2], gooderr);
     
     
-    Class nsobject = MACompoundFuture(^{ usleep(100000); return [NSObject class]; });
+    Class nsobject = MACompoundBackgroundFuture(^{ usleep(100000); return [NSObject class]; });
     int x = 0;
     NSString *str = [nsobject objectReturnAndPrimitiveByReference: &x];
     NSLog(@"objectReturnAndPrimitiveByReference pointer: %p int: %d", str, x);
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
     @try
     {
         NSLog(@"start");
-        NSString *future = MAFuture(^{
+        NSString *future = MABackgroundFuture(^{
             NSLog(@"Computing future\n");
             usleep(100000);
             return @"future result";
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
             return @"lazy future result";
         });
         NSLog(@"lazy future created");
-        NSString *compoundFuture = MACompoundFuture(^{
+        NSString *compoundFuture = MACompoundBackgroundFuture(^{
             NSLog(@"Computing compound future\n");
             usleep(100000);
             return @"compound future result";
@@ -76,20 +76,20 @@ int main(int argc, char **argv)
         });
         NSLog(@"compound lazy future created");
         
-        id nilFuture = MAFuture(^{ return nil; });
-        id nilCompoundFuture = MACompoundFuture(^{ return nil; });
+        id nilFuture = MABackgroundFuture(^{ return nil; });
+        id nilCompoundFuture = MACompoundBackgroundFuture(^{ return nil; });
         
         NSLog(@"future: %@", future);
         NSLog(@"lazy future: %@", lazyFuture);
         NSLog(@"compound future: %@", [compoundFuture stringByAppendingString: @" suffix"]);
         NSLog(@"compound lazy future: %@", [compoundLazyFuture stringByAppendingString: @" suffix"]);
         
-        NSString *future1 = MAFuture(^{
+        NSString *future1 = MABackgroundFuture(^{
             NSLog(@"Computing future\n");
             usleep(100000);
             return @"future result";
         });
-        NSString *future2 = MAFuture(^{
+        NSString *future2 = MABackgroundFuture(^{
             NSLog(@"Computing future\n");
             usleep(100000);
             return @"future result";

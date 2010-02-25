@@ -103,8 +103,8 @@
 
 @end
 
-#undef MAFuture
-id MAFuture(id (^block)(void))
+#undef MABackgroundFuture
+id MABackgroundFuture(id (^block)(void))
 {
     return [[[_MABackgroundBlockFuture alloc] initWithBlock: block] autorelease];
 }
