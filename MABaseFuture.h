@@ -12,9 +12,6 @@
 
 - (id)init;
 
-// resolves the future, then queries it
-- (BOOL)respondsToSelector: (SEL)sel;
-
 // access value while holding the lock
 // don't call the setter more than once
 - (void)setFutureValue: (id)value;

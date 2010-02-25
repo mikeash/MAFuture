@@ -19,11 +19,6 @@
     [super dealloc];
 }
 
-- (BOOL)respondsToSelector: (SEL)sel
-{
-    return [[self resolveFuture] respondsToSelector: sel];
-}
-
 - (void)setFutureValue: (id)value
 {
     [_lock lock];

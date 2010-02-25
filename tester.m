@@ -97,6 +97,7 @@ int main(int argc, char **argv)
         NSLog(@"%p == %p? %llx %llx %s", future1, future2, (long long)[future1 hash], (long long)[future2 hash], [future1 isEqual: future2] ? "YES" : "NO");
         NSLog(@"nil future: %@", nilFuture);
         NSLog(@"nil compound future: %@", nilCompoundFuture);
+        NSLog(@"future responds to description method: %d", [future respondsToSelector: @selector(description)]);
         
         TestOutParameters();
     }
