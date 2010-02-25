@@ -32,5 +32,4 @@
 // returns the future value, blocks for it to resolve if needed
 - (id)resolveFuture;
 
-
 @end
