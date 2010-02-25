@@ -23,11 +23,6 @@
     return [self resolveFuture];
 }
 
-- (BOOL)respondsToSelector: (SEL)sel
-{
-    return [[self resolveFuture] respondsToSelector: sel];
-}
-
 - (NSMethodSignature *)methodSignatureForSelector: (SEL)sel
 {
     return [[MAMethodSignatureCache sharedCache] cachedMethodSignatureForSelector: sel];
