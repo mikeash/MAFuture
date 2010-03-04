@@ -80,12 +80,12 @@
     BOOL resolved = _resolved;
     [_lock unlock];
     
-    if(value)
+    if(resolved)
     {
         LOG(@"forwardInvocation: %p forwarding to %p", invocation, value);
         [invocation invokeWithTarget: value];
     }
-    else if(!resolved)
+    else
     {
         // look for return-by-reference objects
         _MALazyBlockFuture *invocationFuture = nil;
@@ -152,14 +152,6 @@
         LOG(@"forwardInvocation: %p creating new compound future %p", invocation, returnFuture);
         [invocation setReturnValue: &returnFuture];
         [returnFuture release];
-    }
-    else
-    {
-        // resolved, no value, means we're messaging nil
-        // zero-fill the return and done
-        char returnValue[[[invocation methodSignature] methodReturnLength]];
-        bzero(returnValue, sizeof(returnValue));
-        [invocation setReturnValue: returnValue];
     }
 }
 
