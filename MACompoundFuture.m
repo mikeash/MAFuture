@@ -89,6 +89,7 @@
     {
         // look for return-by-reference objects
         _MALazyBlockFuture *invocationFuture = nil;
+        NSMutableArray *parameterDatas = nil;
         NSMethodSignature *sig = [invocation methodSignature];
         unsigned num = [sig numberOfArguments];
         for(unsigned i = 2; i < num; i++)
@@ -116,10 +117,18 @@
                     // only gets invoked once no matter how many
                     // compound futures reference it
                     if(!invocationFuture)
+                    {
+                        parameterDatas = [NSMutableArray array];
                         invocationFuture = [[_MALazyBlockFuture alloc] initWithBlock: ^{
                             [invocation invokeWithTarget: [self resolveFuture]];
+                            // keep all parameter datas alive until the invocation is resolved
+                            // by capturing the variable
+                            [parameterDatas self];
                             return (id)nil;
                         }];
+                        [invocationFuture autorelease];
+                    }
+                    [parameterDatas addObject: newParameterSpace];
                     
                     // create the compound future that we'll "return" in this argument
                     _MACompoundFuture *parameterFuture = [[_MACompoundFuture alloc] initWithBlock: ^{

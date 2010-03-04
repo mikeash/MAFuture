@@ -42,6 +42,16 @@ static void TestOutParameters(void)
     NSString *str = [nsobject objectReturnAndPrimitiveByReference: &x];
     NSLog(@"objectReturnAndPrimitiveByReference pointer: %p int: %d", str, x);
     NSLog(@"objectReturnAndPrimitiveByReference description: %@ int: %d", str, x);
+    
+    NSLog(@"Testing out parameters whose futures are not retained");
+    nsstring = MACompoundLazyFuture(^{ NSLog(@"Fetching NSString class"); return [NSString class]; });
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    badstr = [nsstring stringWithContentsOfFile: @"/this/file/does/not/exist" encoding: NSUTF8StringEncoding error: &baderr];
+    [badstr retain];
+    [pool release];
+    NSLog(@"nonretained out future destroyed now");
+    NSLog(@"nonretained out future result: %@", badstr);
+    [badstr release];
 }
 
 int main(int argc, char **argv)
