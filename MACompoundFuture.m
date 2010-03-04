@@ -56,13 +56,6 @@
         return [self resolveFuture];
 }
 
-- (BOOL)respondsToSelector: (SEL)sel
-{
-    LOG(@"respondsToSelector: %p %@", self, NSStringFromSelector(sel));
-    
-    return [[self resolveFuture] respondsToSelector: sel];
-}
-
 - (NSMethodSignature *)methodSignatureForSelector: (SEL)sel
 {
     LOG(@"methodSignatureForSelector: %p %@", self, NSStringFromSelector(sel));
