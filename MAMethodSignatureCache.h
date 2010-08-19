@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 
+#if TARGET_OS_MAC && !TARGET_IPHONE_SIMULATOR
 
 @interface MAMethodSignatureCache : NSObject
 {
@@ -11,3 +12,5 @@
 - (NSMethodSignature *)cachedMethodSignatureForSelector: (SEL)sel;
 
 @end
+
+#endif

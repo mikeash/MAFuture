@@ -23,10 +23,14 @@
     return [self resolveFuture];
 }
 
+#if TARGET_OS_MAC && !TARGET_IPHONE_SIMULATOR
+
 - (NSMethodSignature *)methodSignatureForSelector: (SEL)sel
 {
     return [[MAMethodSignatureCache sharedCache] cachedMethodSignatureForSelector: sel];
 }
+
+#endif
 
 - (void)forwardInvocation: (NSInvocation *)inv
 {
