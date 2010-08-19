@@ -1,6 +1,8 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 
+#if TARGET_OS_MAC && !TARGET_IPHONE_SIMULATOR
+
 #import "MAFuture.h"
 #import "MAFutureInternal.h"
 #import "MAMethodSignatureCache.h"
@@ -186,3 +188,4 @@ id MACompoundLazyFuture(id (^block)(void))
     return [compoundFuture autorelease];
 }
 
+#endif

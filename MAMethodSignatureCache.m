@@ -2,6 +2,7 @@
 
 #import "MAMethodSignatureCache.h"
 
+#if TARGET_OS_MAC && !TARGET_IPHONE_SIMULATOR
 
 @interface NSRecursiveLock (BlockAdditions)
 
@@ -110,3 +111,5 @@
 }
 
 @end
+
+#endif
