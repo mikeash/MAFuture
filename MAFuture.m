@@ -121,8 +121,10 @@ id MALazyFuture(id (^block)(void))
 
 - (void)dealloc
 {
-    [[NSNotificationCenter defaultCenter] removeObserver:_memoryWarningsObserver];
-    [_memoryWarningsObserver release];
+    if (_memoryWarningsObserver != nil) {
+        [[NSNotificationCenter defaultCenter] removeObserver:_memoryWarningsObserver];
+        [_memoryWarningsObserver release];
+    }
     [super dealloc];
 }
 
@@ -136,7 +138,7 @@ id MALazyFuture(id (^block)(void))
         _memoryWarningsObserver = [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidReceiveMemoryWarningNotification
                                                                                     object:nil
                                                                                      queue:nil
-                                                                                usingBlock:^(NSNotification *notification){
+                                                                                usingBlock:^(NSNotification *notification) {
 	    [_lock lock];
 	    [[NSNotificationCenter defaultCenter] removeObserver:_memoryWarningsObserver name:UIApplicationDidReceiveMemoryWarningNotification object:nil];
 	    [_memoryWarningsObserver release], _memoryWarningsObserver = nil;
