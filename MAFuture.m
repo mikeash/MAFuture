@@ -113,3 +113,54 @@ id MALazyFuture(id (^block)(void))
 {
     return [[[_MALazyBlockFuture alloc] initWithBlock: block] autorelease];
 }
+
+#ifdef __IPHONE_4_0
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
+
+@implementation _IKMemoryAwareFuture
+
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:_memoryWarningsObserver];
+    [_memoryWarningsObserver release];
+    [super dealloc];
+}
+
+
+- (id)resolveFuture
+{
+    [_lock lock];
+    if(![self futureHasResolved])
+    {
+        [self setFutureValueUnlocked: _block()];
+        _memoryWarningsObserver = [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidReceiveMemoryWarningNotification
+                                                                                    object:nil
+                                                                                     queue:nil
+                                                                                usingBlock:^(NSNotification *notification){
+	    [_lock lock];
+	    [[NSNotificationCenter defaultCenter] removeObserver:_memoryWarningsObserver name:UIApplicationDidReceiveMemoryWarningNotification object:nil];
+	    [_memoryWarningsObserver release], _memoryWarningsObserver = nil;
+	    [_value release], _value = nil;
+	    _resolved = NO;
+	    [_lock unlock];
+	  }];
+	[_memoryWarningsObserver retain];
+    }
+    [_lock unlock];
+    return _value;
+}
+
+@end
+
+#undef IKMemoryAwareFutureCreate
+id IKMemoryAwareFutureCreate(id (^block)(void)) {
+    return [[_IKMemoryAwareFuture alloc] initWithBlock:block];
+}
+
+#undef IKMemoryAwareFuture
+id IKMemoryAwareFuture(id (^block)(void)) {
+    return [IKMemoryAwareFutureCreate(block) autorelease];
+}
+
+#endif // __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
+#endif // __IPHONE_4_0
