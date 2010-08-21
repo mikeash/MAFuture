@@ -19,17 +19,14 @@
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
 
 @interface _IKMemoryAwareFuture : _MALazyBlockFuture {
+    BOOL isObserving;
 }
+
+@property BOOL isObserving;
 
 - (void)memoryWarningHandler;
 
-- (void)startObserving;
-
-- (void)startObservingUnlocked;
-
-- (void)stopObserving;
-
-- (void)stopObservingUnlocked;
+- (void)setIsObservingUnlocked:(BOOL)newIsObserving;
 
 @end
 
