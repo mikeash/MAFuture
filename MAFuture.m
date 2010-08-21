@@ -121,10 +121,7 @@ id MALazyFuture(id (^block)(void))
 
 - (void)dealloc
 {
-    if (_memoryWarningsObserver != nil) {
-        [[NSNotificationCenter defaultCenter] removeObserver:_memoryWarningsObserver];
-        [_memoryWarningsObserver release];
-    }
+    [self stopObservingUnlocked];
     [super dealloc];
 }
 
@@ -135,21 +132,45 @@ id MALazyFuture(id (^block)(void))
     if(![self futureHasResolved])
     {
         [self setFutureValueUnlocked: _block()];
-        _memoryWarningsObserver = [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidReceiveMemoryWarningNotification
-                                                                                    object:nil
-                                                                                     queue:nil
-                                                                                usingBlock:^(NSNotification *notification) {
-	    [_lock lock];
-	    [[NSNotificationCenter defaultCenter] removeObserver:_memoryWarningsObserver name:UIApplicationDidReceiveMemoryWarningNotification object:nil];
-	    [_memoryWarningsObserver release], _memoryWarningsObserver = nil;
-	    [_value release], _value = nil;
-	    _resolved = NO;
-	    [_lock unlock];
-	  }];
-	[_memoryWarningsObserver retain];
+        [self startObservingUnlocked];
     }
     [_lock unlock];
     return _value;
+}
+
+
+- (void)startObserving {
+    [_lock lock];
+    [self startObservingUnlocked];
+    [_lock unlock];
+}
+
+
+- (void)startObservingUnlocked {
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(memoryWarningHandler) 
+                                                 name:UIApplicationDidReceiveMemoryWarningNotification 
+                                               object:nil];
+}
+
+
+- (void)stopObserving {
+    [_lock lock];
+    [self stopObservingUnlocked];
+    [_lock unlock];
+}
+
+
+- (void)stopObservingUnlocked {
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidReceiveMemoryWarningNotification object:nil];
+}
+
+
+- (void)memoryWarningHandler {
+    [_lock lock];
+    [self stopObservingUnlocked];
+    [_value release], _value = nil;
+    _resolved = NO;
+    [_lock unlock];
 }
 
 @end
@@ -162,6 +183,14 @@ id IKMemoryAwareFutureCreate(id (^block)(void)) {
 #undef IKMemoryAwareFuture
 id IKMemoryAwareFuture(id (^block)(void)) {
     return [IKMemoryAwareFutureCreate(block) autorelease];
+}
+
+void IKMemoryAwareFutureStartObserving(id future) {
+    [future startObserving];
+}
+
+void IKMemoryAwareFutureStopObserving(id future) {
+    [future stopObserving];
 }
 
 #endif // __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0

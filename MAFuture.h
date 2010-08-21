@@ -11,6 +11,9 @@ id MALazyFuture(id (^block)(void));
 
 id IKMemoryAwareFuture(id (^block)(void));
 id IKMemoryAwareFutureCreate(id (^block)(void));
+void IKMemoryAwareFutureStartObserving(id future);
+void IKMemoryAwareFutureStopObserving(id future);
+
 #define IKMemoryAwareFuture(...)((__typeof((__VA_ARGS__)()))IKMemoryAwareFuture((id (^)(void))(__VA_ARGS__)))
 #define IKMemoryAwareFutureCreate(...)((__typeof((__VA_ARGS__)()))IKMemoryAwareFutureCreate((id (^)(void))(__VA_ARGS__)))
 
