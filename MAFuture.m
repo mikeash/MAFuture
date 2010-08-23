@@ -20,17 +20,21 @@
 - (id)forwardingTargetForSelector: (SEL)sel
 {
     LOG(@"%p forwardingTargetForSelector: %@, resolving future", self, NSStringFromSelector(sel));
+#if ENABLE_LOGGING
+    id resolvedFuture = [self resolveFuture];
+    if (resolvedFuture == nil) {
+        LOG(@"WARNING: [%@ resolveFuture] has returned nil. You must avoid to return nil objects from the block", NSStringFromClass(isa));
+    }
+    return resolvedFuture;
+#else
     return [self resolveFuture];
+#endif
 }
-
-#if TARGET_OS_MAC && !TARGET_IPHONE_SIMULATOR
 
 - (NSMethodSignature *)methodSignatureForSelector: (SEL)sel
 {
     return [[MAMethodSignatureCache sharedCache] cachedMethodSignatureForSelector: sel];
 }
-
-#endif
 
 - (void)forwardInvocation: (NSInvocation *)inv
 {
@@ -114,8 +118,8 @@ id MALazyFuture(id (^block)(void))
     return [[[_MALazyBlockFuture alloc] initWithBlock: block] autorelease];
 }
 
-#ifdef __IPHONE_4_0
-#if __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
+#ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
+#if __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
 
 @implementation _IKMemoryAwareFuture
 @dynamic isObserving;
@@ -127,7 +131,22 @@ id MALazyFuture(id (^block)(void))
 
 - (void)setIsObserving:(BOOL)newIsObserving {
     [_lock lock];
-    [self setIsObservingUnlocked:newIsObserving];
+    if (newIsObserving && isManuallyStopped) {
+        isManuallyStopped = NO;
+        if (_resolved) {
+            // If future is resolved set isObserving back to YES.
+            // Otherwise this will be set to YES just after resolving.
+            [self setIsObservingUnlocked:YES];
+        }
+    }
+    else if (!newIsObserving && !isManuallyStopped) {
+        isManuallyStopped = YES;
+        if (_resolved) {
+            // If future is resolved set isObserving to NO.
+            // Otherwise this is already set to NO.
+            [self setIsObservingUnlocked:NO];
+        }
+    }
     [_lock unlock];
 }
 
@@ -136,7 +155,7 @@ id MALazyFuture(id (^block)(void))
     
     if (isObserving != newIsObserving) {
         if (newIsObserving) {
-            [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(memoryWarningHandler) 
+            [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(processMemoryWarning) 
                                                          name:UIApplicationDidReceiveMemoryWarningNotification 
                                                        object:nil];
         }
@@ -148,40 +167,47 @@ id MALazyFuture(id (^block)(void))
 }
 
 
-- (void)dealloc
-{
+- (void)dealloc {
     [self setIsObservingUnlocked:NO];
     [super dealloc];
 }
 
 
-- (id)resolveFuture
-{
+- (id)resolveFuture {
     [_lock lock];
     if(![self futureHasResolved])
     {
         [self setFutureValueUnlocked: _block()];
+        if (!isManuallyStopped) {
+            [self setIsObservingUnlocked:YES];
+        }
     }
     [_lock unlock];
     return _value;
 }
 
 
-- (void)memoryWarningHandler {
+- (void)processMemoryWarning {
     [_lock lock];
+    // TODO: I'm not sure about the thread that receives UIApplicationDidReceiveMemoryWarningNotification.
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [self processMemoryWarningUnlocked];
+        dispatch_async(dispatch_get_main_queue(), ^{ [_lock unlock]; });
+    });
+}
+
+
+- (void)processMemoryWarningUnlocked {
     [self setIsObservingUnlocked:NO];
     [_value release], _value = nil;
     _resolved = NO;
-    [_lock unlock];
 }
 
 @end
 
 #undef IKMemoryAwareFutureCreate
 id IKMemoryAwareFutureCreate(id (^block)(void)) {
-    id value = [[_IKMemoryAwareFuture alloc] initWithBlock:block];
-    [value setIsObservingUnlocked:YES];
-    return value;
+    return [[_IKMemoryAwareFuture alloc] initWithBlock:block];
 }
 
 #undef IKMemoryAwareFuture
@@ -201,5 +227,138 @@ BOOL IKMemoryAwareFutureIsObserving(id future) {
     return [future isObserving];
 }
 
-#endif // __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
-#endif // __IPHONE_4_0
+#pragma mark -
+#pragma mark Archiving IKMAFutures
+
+NSString* IKMemoryAwareFuturesDirectory() {
+    static NSString* FuturesDirectory = nil;
+    if (FuturesDirectory == nil) {
+        FuturesDirectory = [[NSTemporaryDirectory() stringByAppendingPathComponent:@"futures"] retain];
+    }
+    return FuturesDirectory;
+}
+
+NSString* IKMemoryAwareFuturePath(id future) {
+    return [IKMemoryAwareFuturesDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"%p", future]];
+}
+
+@implementation _IKAutoArchivingMemoryAwareFuture
+
++ (void)initialize {
+    
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    NSString *futuresDirectory = IKMemoryAwareFuturesDirectory();
+#if ENABLE_LOGGING
+    NSError *error = nil;
+    if (![fileManager removeItemAtPath:futuresDirectory error:&error]) {
+        LOG(@"IKAAMAF: Error is occured while trying to remove old futures directory at path \"%@\": %@",
+            futuresDirectory, [error localizedDescription]);
+    }
+    if (![fileManager createDirectoryAtPath:futuresDirectory withIntermediateDirectories:NO attributes:nil error:&error]) {
+        LOG(@"IKAAMAF: Error is occured while trying to create temporary directory for futures at path \"%@\": %@",
+            futuresDirectory, [error localizedDescription]);
+    }
+#else
+    [fileManager removeItemAtPath:futuresDirectory error:NULL];
+    [fileManager createDirectoryAtPath:futuresDirectory withIntermediateDirectories:NO attributes:nil error:NULL];
+#endif
+}
+
+
+- (void)dealloc {
+#if ENABLE_LOGGING
+    NSError *error = nil;
+    if (![[NSFileManager defaultManager] removeItemAtPath:IKMemoryAwareFuturePath(self) error:&error]) {
+        LOG(@"IKAAMAF: Error is occured while trying to delete file for future %@ at path \"%@\": %@", 
+            self, IKMemoryAwareFuturePath(self), [error localizedDescription]);
+    }
+#else
+    [[NSFileManager defaultManager] removeItemAtPath:IKMemoryAwareFuturePath(self) error:NULL];
+#endif
+    [super dealloc];
+}
+
+
+- (id)resolveFuture {
+    [_lock lock];
+    if(![self futureHasResolved])
+    {
+        // Try to decode object from file.
+        if (![self decodeValueUnlocked]) {
+            // If cannot to decode object, create it.
+            [self setFutureValueUnlocked: _block()];
+        }
+        else {
+            _resolved = YES;
+        }
+        
+        if (!isManuallyStopped) {
+            [self setIsObservingUnlocked:YES];
+        }
+    }
+    [_lock unlock];
+    return _value;
+}
+
+
+- (void)processMemoryWarningUnlocked {
+    [self encodeValueUnlocked];
+    [super processMemoryWarningUnlocked];
+}
+
+
+- (BOOL)encodeValue {
+    [_lock lock];
+    BOOL result = [self encodeValueUnlocked];
+    [_lock unlock];
+    return result;
+}
+
+
+- (BOOL)encodeValueUnlocked {
+#if ENABLE_LOGGING
+    BOOL result = [NSKeyedArchiver archiveRootObject:_value toFile:IKMemoryAwareFuturePath(self)];
+    if (!result) {
+        LOG(@"IKAAMAF: Cannot encode value at path \"%@\"", IKMemoryAwareFuturePath(self));
+    }
+    return result;
+#else
+    return [NSKeyedArchiver archiveRootObject:_value toFile:IKMemoryAwareFuturePath(self)];
+#endif
+}
+
+
+- (BOOL)decodeValue {
+    [_lock lock];
+    BOOL result = [self decodeValueUnlocked];
+    [_lock unlock];
+    return result;
+}
+
+
+- (BOOL)decodeValueUnlocked {
+    _value = [[NSKeyedUnarchiver unarchiveObjectWithFile:IKMemoryAwareFuturePath(self)] retain];
+#if ENABLE_LOGGING
+    if (_value == nil) {
+        LOG(@"IKAAMAF: Cannot decode value at path \"%@\"", IKMemoryAwareFuturePath(self));
+    }
+#endif
+    _resolved = (_value != nil);
+    return _resolved;
+}
+
+@end
+
+#undef IKAutoArchivingMemoryAwareFutureCreate
+id IKAutoArchivingMemoryAwareFutureCreate(id (^block)(void)) {
+    // TODO: Find a way to check up the object is returned by the block conforms to the NSCoding protocol.
+    return [[_IKAutoArchivingMemoryAwareFuture alloc] initWithBlock:block];
+}
+
+#undef IKAutoArchivingMemoryAwareFuture
+id IKAutoArchivingMemoryAwareFuture(id (^block)(void)) {
+    return [IKAutoArchivingMemoryAwareFutureCreate(block) autorelease];
+}
+
+#endif // __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
+#endif // __IPHONE_OS_VERSION_MIN_REQUIRED
