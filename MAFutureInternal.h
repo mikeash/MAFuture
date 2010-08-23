@@ -30,5 +30,30 @@
 
 @end
 
+NSString* IKMemoryAwareFuturesDirectory();
+
+NSString* IKMemoryAwareFuturePath(id future);
+
+@interface _IKAutoArchivingMemoryAwareFuture : _IKMemoryAwareFuture
+
+/*
+  @abstract Encode value while holding the lock
+*/
+- (BOOL)encodeValue;
+/*
+  @abstract Encode value without holding the lock
+*/
+- (BOOL)encodeValueUnlocked;
+/*
+  @abstract Decode value while holding the lock
+*/
+- (BOOL)decodeValue;
+/*
+  @abstract Decode value without holding the lock
+*/
+- (BOOL)decodeValueUnlocked;
+
+@end
+
 #endif // __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
 #endif // __IPHONE_4_0

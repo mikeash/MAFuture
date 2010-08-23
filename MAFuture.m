@@ -7,7 +7,7 @@
 #import "MAMethodSignatureCache.h"
 
 
-#define ENABLE_LOGGING 0
+#define ENABLE_LOGGING 1
 
 #if ENABLE_LOGGING
 #define LOG(...) NSLog(__VA_ARGS__)
@@ -199,6 +199,126 @@ void IKMemoryAwareFutureStopObserving(id future) {
 
 BOOL IKMemoryAwareFutureIsObserving(id future) {
     return [future isObserving];
+}
+
+
+#pragma mark -
+#pragma mark Archiving IKMAFutures
+
+NSString* IKMemoryAwareFuturesDirectory() {
+    static NSString* FuturesDirectory = nil;
+    if (FuturesDirectory == nil) {
+        FuturesDirectory = [[NSTemporaryDirectory() stringByAppendingPathComponent:@"futures"] retain];
+    }
+    return FuturesDirectory;
+}
+
+NSString* IKMemoryAwareFuturePath(id future) {
+    return [IKMemoryAwareFuturesDirectory() stringByAppendingPathComponent:[NSString stringWithFormat:@"%p", future]];
+}
+
+@implementation _IKAutoArchivingMemoryAwareFuture
+
++ (void)initialize {
+    
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    NSString *futuresDirectory = IKMemoryAwareFuturesDirectory();
+#if ENABLE_LOGGING
+    NSError *error = nil;
+    if (![fileManager removeItemAtPath:futuresDirectory error:&error]) {
+        LOG(@"IKAAMAF: Error is occured while trying to remove old futures directory at path \"%@\": %@",
+            futuresDirectory, [error localizedDescription]);
+    }
+    if (![fileManager createDirectoryAtPath:futuresDirectory withIntermediateDirectories:NO attributes:nil error:&error]) {
+        LOG(@"IKAAMAF: Error is occured while trying to create temporary directory for futures at path \"%@\": %@",
+            futuresDirectory, [error localizedDescription]);
+    };
+#else
+    [fileManager removeItemAtPath:futuresDirectory error:NULL];
+    [fileManager createDirectoryAtPath:futuresDirectory withIntermediateDirectories:NO attributes:nil error:NULL];
+#endif
+}
+
+
+- (void)dealloc {
+#if ENABLE_LOGGING
+    NSError *error = nil;
+    if (![[NSFileManager defaultManager] removeItemAtPath:IKMemoryAwareFuturePath(self) error:&error]) {
+        LOG(@"IKMAF: Error is occured while trying to delete file for future %@ at path \"%@\": %@", 
+            self, IKMemoryAwareFuturePath(self), [error localizedDescription]);
+    };
+#else
+    [[NSFileManager defaultManager] removeItemAtPath:IKMemoryAwareFuturePath(self) error:NULL];
+#endif
+    [super dealloc];
+}
+
+
+- (id)resolveFuture
+{
+    [_lock lock];
+    if(![self futureHasResolved])
+    {
+        // Try to decode object from file.
+        if (![self decodeValueUnlocked]) {
+            // If cannot to decode object, create it.
+            [self setFutureValueUnlocked: _block()];
+        }
+    }
+    [_lock unlock];
+    return _value;
+}
+
+
+- (void)memoryWarningHandler {
+    [_lock lock];
+    [self encodeValueUnlocked];
+    [self setIsObservingUnlocked:NO];
+    [_value release], _value = nil;
+    _resolved = NO;
+    [_lock unlock];
+}
+
+
+- (BOOL)encodeValue {
+    [_lock lock];
+    BOOL result = [self encodeValueUnlocked];
+    [_lock unlock];
+    return result;
+}
+
+
+- (BOOL)encodeValueUnlocked {
+    return [NSKeyedArchiver archiveRootObject:_value toFile:IKMemoryAwareFuturePath(self)];
+}
+
+
+- (BOOL)decodeValue {
+    [_lock lock];
+    BOOL result = [self decodeValueUnlocked];
+    [_lock unlock];
+    return result;
+}
+
+
+- (BOOL)decodeValueUnlocked {
+    _value = [[NSKeyedUnarchiver unarchiveObjectWithFile:IKMemoryAwareFuturePath(self)] retain];
+    return (_value != nil);
+}
+
+@end
+
+#undef IKAutoArchivingMemoryAwareFutureCreate
+id IKAutoArchivingMemoryAwareFutureCreate(id (^block)(void)) {
+    // TODO: Find a way to check up the object is returned by the block conforms to the NSCoding protocol.
+    _IKAutoArchivingMemoryAwareFuture *future = [[_IKAutoArchivingMemoryAwareFuture alloc] initWithBlock:block];
+    [future setIsObservingUnlocked:YES];
+    return future;
+}
+
+#undef IKAutoArchivingMemoryAwareFuture
+id IKAutoArchivingMemoryAwareFuture(id (^block)(void)) {
+    return [IKAutoArchivingMemoryAwareFutureCreate(block) autorelease];
 }
 
 #endif // __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
