@@ -161,7 +161,6 @@ id MALazyFuture(id (^block)(void))
     if(![self futureHasResolved])
     {
         [self setFutureValueUnlocked: _block()];
-        [self setIsObservingUnlocked:YES];
     }
     [_lock unlock];
     return _value;
@@ -180,7 +179,9 @@ id MALazyFuture(id (^block)(void))
 
 #undef IKMemoryAwareFutureCreate
 id IKMemoryAwareFutureCreate(id (^block)(void)) {
-    return [[_IKMemoryAwareFuture alloc] initWithBlock:block];
+    id value = [[_IKMemoryAwareFuture alloc] initWithBlock:block];
+    [value setIsObservingUnlocked:YES];
+    return value;
 }
 
 #undef IKMemoryAwareFuture
