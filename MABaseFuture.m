@@ -63,9 +63,8 @@
 
 - (id)resolveFuture
 {
-    NSLog(@"-[MABaseFuture resolveFuture] called, this should never happen! Did you forget to implement -[%@ resolveFuture]?", NSStringFromClass(isa));
-    NSParameterAssert(0);
-    return nil;
+    NSAssert(0, @"-[MABaseFuture resolveFuture] called, this should never happen! Did you forget to implement -[%@ resolveFuture]?", NSStringFromClass(isa));
+    __builtin_unreachable();
 }
 
 - (Class)class

@@ -15,8 +15,8 @@
 
 @end
 
-#ifdef __IPHONE_4_0
-#if __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
+#ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
+#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_4_0
 
 @interface _IKMemoryAwareFuture : _MALazyBlockFuture {
     BOOL isObserving;
@@ -55,5 +55,5 @@ NSString* IKMemoryAwareFuturePath(id future);
 
 @end
 
-#endif // __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
-#endif // __IPHONE_4_0
+#endif // __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_4_0
+#endif // __IPHONE_OS_VERSION_MIN_REQUIRED

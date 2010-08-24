@@ -20,17 +20,21 @@
 - (id)forwardingTargetForSelector: (SEL)sel
 {
     LOG(@"%p forwardingTargetForSelector: %@, resolving future", self, NSStringFromSelector(sel));
+#if ENABLE_LOGGING
+    id resolvedFuture = [self resolveFuture];
+    if (resolvedFuture == nil) {
+        LOG(@"WARNING: [%@ resolveFuture] has returned nil. You must avoid to return nil objects from the block", NSStringFromClass(isa));
+    }
+    return resolvedFuture;
+#else
     return [self resolveFuture];
+#endif
 }
-
-#if TARGET_OS_MAC && !TARGET_IPHONE_SIMULATOR
 
 - (NSMethodSignature *)methodSignatureForSelector: (SEL)sel
 {
     return [[MAMethodSignatureCache sharedCache] cachedMethodSignatureForSelector: sel];
 }
-
-#endif
 
 - (void)forwardInvocation: (NSInvocation *)inv
 {
@@ -114,8 +118,8 @@ id MALazyFuture(id (^block)(void))
     return [[[_MALazyBlockFuture alloc] initWithBlock: block] autorelease];
 }
 
-#ifdef __IPHONE_4_0
-#if __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
+#ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
+#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_4_0
 
 @implementation _IKMemoryAwareFuture
 @dynamic isObserving;
@@ -200,7 +204,6 @@ void IKMemoryAwareFutureStopObserving(id future) {
 BOOL IKMemoryAwareFutureIsObserving(id future) {
     return [future isObserving];
 }
-
 
 #pragma mark -
 #pragma mark Archiving IKMAFutures
@@ -334,5 +337,5 @@ id IKAutoArchivingMemoryAwareFuture(id (^block)(void)) {
     return [IKAutoArchivingMemoryAwareFutureCreate(block) autorelease];
 }
 
-#endif // __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
+#endif // __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_4_0
 #endif // __IPHONE_4_0
