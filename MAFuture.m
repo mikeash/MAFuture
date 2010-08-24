@@ -263,7 +263,7 @@ NSString* IKMemoryAwareFuturePath(id future) {
 #if ENABLE_LOGGING
     NSError *error = nil;
     if (![[NSFileManager defaultManager] removeItemAtPath:IKMemoryAwareFuturePath(self) error:&error]) {
-        LOG(@"IKMAF: Error is occured while trying to delete file for future %@ at path \"%@\": %@", 
+        LOG(@"IKAAMAF: Error is occured while trying to delete file for future %@ at path \"%@\": %@", 
             self, IKMemoryAwareFuturePath(self), [error localizedDescription]);
     };
 #else
@@ -314,7 +314,7 @@ NSString* IKMemoryAwareFuturePath(id future) {
 #if ENABLE_LOGGING
     BOOL result = [NSKeyedArchiver archiveRootObject:_value toFile:IKMemoryAwareFuturePath(self)];
     if (!result) {
-        LOG(@"Cannot encode value at path \"%@\"", IKMemoryAwareFuturePath(self));
+        LOG(@"IKAAMAF: Cannot encode value at path \"%@\"", IKMemoryAwareFuturePath(self));
     }
     return result;
 #else
@@ -335,7 +335,7 @@ NSString* IKMemoryAwareFuturePath(id future) {
     _value = [[NSKeyedUnarchiver unarchiveObjectWithFile:IKMemoryAwareFuturePath(self)] retain];
 #if ENABLE_LOGGING
     if (_value == nil) {
-        LOG(@"Cannot decode value at path \"%@\"", IKMemoryAwareFuturePath(self));
+        LOG(@"IKAAMAF: Cannot decode value at path \"%@\"", IKMemoryAwareFuturePath(self));
     }
 #endif
     return (_value != nil);
