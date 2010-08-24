@@ -131,7 +131,22 @@ id MALazyFuture(id (^block)(void))
 
 - (void)setIsObserving:(BOOL)newIsObserving {
     [_lock lock];
-    [self setIsObservingUnlocked:newIsObserving];
+    if (newIsObserving && isManuallyStopped) {
+        isManuallyStopped = NO;
+        if (_resolved) {
+            // If future is resolved set isObserving back to YES.
+            // Otherwise this will be set to YES just after resolving.
+            [self setIsObservingUnlocked:YES];
+        }
+    }
+    else if (!newIsObserving && !isManuallyStopped) {
+        isManuallyStopped = YES;
+        if (_resolved) {
+            // If future is resolved set isObserving to NO.
+            // Otherwise this is already set to NO.
+            [self setIsObservingUnlocked:NO];
+        }
+    }
     [_lock unlock];
 }
 
@@ -165,6 +180,9 @@ id MALazyFuture(id (^block)(void))
     if(![self futureHasResolved])
     {
         [self setFutureValueUnlocked: _block()];
+        if (!isManuallyStopped) {
+            [self setIsObservingUnlocked:YES];
+        }
     }
     [_lock unlock];
     return _value;
@@ -183,9 +201,7 @@ id MALazyFuture(id (^block)(void))
 
 #undef IKMemoryAwareFutureCreate
 id IKMemoryAwareFutureCreate(id (^block)(void)) {
-    id value = [[_IKMemoryAwareFuture alloc] initWithBlock:block];
-    [value setIsObservingUnlocked:YES];
-    return value;
+    return [[_IKMemoryAwareFuture alloc] initWithBlock:block];
 }
 
 #undef IKMemoryAwareFuture
@@ -266,6 +282,9 @@ NSString* IKMemoryAwareFuturePath(id future) {
         if (![self decodeValueUnlocked]) {
             // If cannot to decode object, create it.
             [self setFutureValueUnlocked: _block()];
+        }
+        if (!isManuallyStopped) {
+            [self setIsObservingUnlocked:YES];
         }
     }
     [_lock unlock];

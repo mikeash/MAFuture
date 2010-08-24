@@ -18,14 +18,38 @@
 #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
 #if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_4_0
 
+/*
+ Subclassing Notes:
+ 
+ Template for resolveFuture method:
+ [_lock lock];
+ if(![self futureHasResolved])
+ {
+    
+    // ---> Insert your code here <---
+    // Somewhere in your code you should place [self setFutureValueUnlocked: _block()];
+ 
+    if (!isManuallyStopped) {
+        [self setIsObservingUnlocked:YES];
+    }
+ }
+ [_lock unlock];
+ return _value;
+ */
 @interface _IKMemoryAwareFuture : _MALazyBlockFuture {
     BOOL isObserving;
+    BOOL isManuallyStopped;
 }
 
 @property BOOL isObserving;
 
 - (void)memoryWarningHandler;
 
+/*
+ @abstract Called whenever isObserver variable is changed.
+ @discussion You should not call this function directly from your code. Instead, you should use isObserving property 
+ to start/stop observing memory warnings notifications.
+ */
 - (void)setIsObservingUnlocked:(BOOL)newIsObserving;
 
 @end
