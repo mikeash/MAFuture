@@ -289,7 +289,15 @@ NSString* IKMemoryAwareFuturePath(id future) {
 
 
 - (BOOL)encodeValueUnlocked {
+#if ENABLE_LOGGING
+    BOOL result = [NSKeyedArchiver archiveRootObject:_value toFile:IKMemoryAwareFuturePath(self)];
+    if (!result) {
+        LOG(@"Cannot encode value at path \"%@\"", IKMemoryAwareFuturePath(self));
+    }
+    return result;
+#else
     return [NSKeyedArchiver archiveRootObject:_value toFile:IKMemoryAwareFuturePath(self)];
+#endif
 }
 
 
@@ -303,6 +311,11 @@ NSString* IKMemoryAwareFuturePath(id future) {
 
 - (BOOL)decodeValueUnlocked {
     _value = [[NSKeyedUnarchiver unarchiveObjectWithFile:IKMemoryAwareFuturePath(self)] retain];
+#if ENABLE_LOGGING
+    if (_value == nil) {
+        LOG(@"Cannot decode value at path \"%@\"", IKMemoryAwareFuturePath(self));
+    }
+#endif
     return (_value != nil);
 }
 
