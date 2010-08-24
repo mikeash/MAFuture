@@ -2,7 +2,6 @@
 
 #import "MAMethodSignatureCache.h"
 
-#if TARGET_OS_MAC && !TARGET_IPHONE_SIMULATOR
 
 @interface NSRecursiveLock (BlockAdditions)
 
@@ -36,10 +35,14 @@
 {
     if((self = [super init]))
     {
+#ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
+        _cache = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, NULL, &kCFTypeDictionaryValueCallBacks);
+#else
         _cache = [[NSMapTable alloc]
                   initWithKeyOptions: NSPointerFunctionsOpaqueMemory | NSPointerFunctionsOpaquePersonality
                   valueOptions: NSPointerFunctionsStrongMemory | NSPointerFunctionsObjectPersonality
                   capacity: 0];
+#endif
         _lock = [[NSRecursiveLock alloc] init];
         [[NSNotificationCenter defaultCenter]
          addObserver: self
@@ -52,7 +55,13 @@
 
 - (void)_clearCache
 {
-    [_lock ma_do: ^{ [_cache removeAllObjects]; }];
+    [_lock ma_do: ^{
+#ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
+        CFDictionaryRemoveAllValues(_cache);
+#else
+        [_cache removeAllObjects]; 
+#endif
+    }];
 }
 
 - (NSMethodSignature *)_searchAllClassesForSignature: (SEL)sel
@@ -96,13 +105,21 @@
 {
     __block NSMethodSignature *sig = nil;
     [_lock ma_do: ^{
+#ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
+        sig = CFDictionaryGetValue(_cache, sel);
+#else
         sig = [_cache objectForKey: (id)sel];
+#endif
         if(!sig)
         {
             sig = [self _searchAllClassesForSignature: sel];
             if(!sig)
                 sig = (id)[NSNull null];
+#ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
+            CFDictionarySetValue(_cache, sel, sig);
+#else
             [_cache setObject: sig forKey: (id)sel];
+#endif
         }
     }];
     if(sig == (id)[NSNull null])
@@ -111,5 +128,3 @@
 }
 
 @end
-
-#endif
