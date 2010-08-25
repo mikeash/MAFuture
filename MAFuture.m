@@ -288,6 +288,10 @@ NSString* IKMemoryAwareFuturePath(id future) {
             // If cannot to decode object, create it.
             [self setFutureValueUnlocked: _block()];
         }
+        else {
+            _resolved = YES;
+        }
+        
         if (!isManuallyStopped) {
             [self setIsObservingUnlocked:YES];
         }
@@ -339,7 +343,8 @@ NSString* IKMemoryAwareFuturePath(id future) {
         LOG(@"IKAAMAF: Cannot decode value at path \"%@\"", IKMemoryAwareFuturePath(self));
     }
 #endif
-    return (_value != nil);
+    _resolved = (_value != nil);
+    return _resolved;
 }
 
 @end
