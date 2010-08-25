@@ -155,7 +155,7 @@ id MALazyFuture(id (^block)(void))
     
     if (isObserving != newIsObserving) {
         if (newIsObserving) {
-            [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(memoryWarningHandler) 
+            [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(processMemoryWarning) 
                                                          name:UIApplicationDidReceiveMemoryWarningNotification 
                                                        object:nil];
         }
@@ -189,12 +189,20 @@ id MALazyFuture(id (^block)(void))
 }
 
 
-- (void)memoryWarningHandler {
+- (void)processMemoryWarning {
     [_lock lock];
+    // TODO: I'm not sure about the thread that receives UIApplicationDidReceiveMemoryWarningNotification.
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [self processMemoryWarningUnlocked];
+        dispatch_async(dispatch_get_main_queue(), ^{ [_lock unlock]; });
+    });
+}
+
+
+- (void)processMemoryWarningUnlocked {
     [self setIsObservingUnlocked:NO];
     [_value release], _value = nil;
     _resolved = NO;
-    [_lock unlock];
 }
 
 @end
@@ -292,13 +300,9 @@ NSString* IKMemoryAwareFuturePath(id future) {
 }
 
 
-- (void)memoryWarningHandler {
-    [_lock lock];
+- (void)processMemoryWarningUnlocked {
     [self encodeValueUnlocked];
-    [self setIsObservingUnlocked:NO];
-    [_value release], _value = nil;
-    _resolved = NO;
-    [_lock unlock];
+    [super processMemoryWarningUnlocked];
 }
 
 

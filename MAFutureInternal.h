@@ -43,7 +43,9 @@
 
 @property BOOL isObserving;
 
-- (void)memoryWarningHandler;
+- (void)processMemoryWarning;
+
+- (void)processMemoryWarningUnlocked;
 
 /*
  @abstract Called whenever isObserver variable is changed.
