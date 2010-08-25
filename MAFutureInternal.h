@@ -16,7 +16,7 @@
 @end
 
 #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_4_0
+#if __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
 
 /*
  Subclassing Notes:
@@ -79,5 +79,5 @@ NSString* IKMemoryAwareFuturePath(id future);
 
 @end
 
-#endif // __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_4_0
+#endif // __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
 #endif // __IPHONE_OS_VERSION_MIN_REQUIRED
