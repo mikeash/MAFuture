@@ -63,7 +63,7 @@
 
 - (id)resolveFuture
 {
-    NSAssert(0, @"-[MABaseFuture resolveFuture] called, this should never happen! Did you forget to implement -[%@ resolveFuture]?", NSStringFromClass(isa));
+    NSAssert1(NO, @"-[MABaseFuture resolveFuture] called, this should never happen! Did you forget to implement -[%@ resolveFuture]?", NSStringFromClass(isa));
     __builtin_unreachable();
 }
 
