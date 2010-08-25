@@ -352,9 +352,7 @@ NSString* IKMemoryAwareFuturePath(id future) {
 #undef IKAutoArchivingMemoryAwareFutureCreate
 id IKAutoArchivingMemoryAwareFutureCreate(id (^block)(void)) {
     // TODO: Find a way to check up the object is returned by the block conforms to the NSCoding protocol.
-    _IKAutoArchivingMemoryAwareFuture *future = [[_IKAutoArchivingMemoryAwareFuture alloc] initWithBlock:block];
-    [future setIsObservingUnlocked:YES];
-    return future;
+    return [[_IKAutoArchivingMemoryAwareFuture alloc] initWithBlock:block];
 }
 
 #undef IKAutoArchivingMemoryAwareFuture
