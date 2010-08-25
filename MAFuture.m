@@ -7,7 +7,7 @@
 #import "MAMethodSignatureCache.h"
 
 
-#define ENABLE_LOGGING 1
+#define ENABLE_LOGGING 0
 
 #if ENABLE_LOGGING
 #define LOG(...) NSLog(__VA_ARGS__)
@@ -167,15 +167,13 @@ id MALazyFuture(id (^block)(void))
 }
 
 
-- (void)dealloc
-{
+- (void)dealloc {
     [self setIsObservingUnlocked:NO];
     [super dealloc];
 }
 
 
-- (id)resolveFuture
-{
+- (id)resolveFuture {
     [_lock lock];
     if(![self futureHasResolved])
     {
@@ -259,7 +257,7 @@ NSString* IKMemoryAwareFuturePath(id future) {
     if (![fileManager createDirectoryAtPath:futuresDirectory withIntermediateDirectories:NO attributes:nil error:&error]) {
         LOG(@"IKAAMAF: Error is occured while trying to create temporary directory for futures at path \"%@\": %@",
             futuresDirectory, [error localizedDescription]);
-    };
+    }
 #else
     [fileManager removeItemAtPath:futuresDirectory error:NULL];
     [fileManager createDirectoryAtPath:futuresDirectory withIntermediateDirectories:NO attributes:nil error:NULL];
@@ -273,7 +271,7 @@ NSString* IKMemoryAwareFuturePath(id future) {
     if (![[NSFileManager defaultManager] removeItemAtPath:IKMemoryAwareFuturePath(self) error:&error]) {
         LOG(@"IKAAMAF: Error is occured while trying to delete file for future %@ at path \"%@\": %@", 
             self, IKMemoryAwareFuturePath(self), [error localizedDescription]);
-    };
+    }
 #else
     [[NSFileManager defaultManager] removeItemAtPath:IKMemoryAwareFuturePath(self) error:NULL];
 #endif
@@ -281,8 +279,7 @@ NSString* IKMemoryAwareFuturePath(id future) {
 }
 
 
-- (id)resolveFuture
-{
+- (id)resolveFuture {
     [_lock lock];
     if(![self futureHasResolved])
     {
