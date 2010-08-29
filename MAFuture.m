@@ -118,6 +118,9 @@ id MALazyFuture(id (^block)(void))
     return [[[_MALazyBlockFuture alloc] initWithBlock: block] autorelease];
 }
 
+#pragma mark -
+#pragma mark iOS Futures
+
 #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
 #if __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
 
@@ -133,7 +136,7 @@ id MALazyFuture(id (^block)(void))
     [_lock lock];
     if (newIsObserving && isManuallyStopped) {
         isManuallyStopped = NO;
-        if (_resolved) {
+        if ([self futureHasResolved]) {
             // If future is resolved set isObserving back to YES.
             // Otherwise this will be set to YES just after resolving.
             [self setIsObservingUnlocked:YES];
@@ -141,13 +144,18 @@ id MALazyFuture(id (^block)(void))
     }
     else if (!newIsObserving && !isManuallyStopped) {
         isManuallyStopped = YES;
-        if (_resolved) {
+        if ([self futureHasResolved]) {
             // If future is resolved set isObserving to NO.
             // Otherwise this is already set to NO.
             [self setIsObservingUnlocked:NO];
         }
     }
     [_lock unlock];
+}
+
+
+- (id)futureValue {
+    return [[[super futureValue] retain] autorelease];
 }
 
 
@@ -189,18 +197,19 @@ id MALazyFuture(id (^block)(void))
 
 - (void)processMemoryWarning {
     [_lock lock];
-    // TODO: I'm not sure about the thread that receives UIApplicationDidReceiveMemoryWarningNotification.
+    [self setIsObservingUnlocked:NO];
+    NSThread *thread = [NSThread currentThread];
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         [self processMemoryWarningUnlocked];
-        dispatch_async(dispatch_get_main_queue(), ^{ [_lock unlock]; });
+        [_lock performSelector:@selector(unlock) onThread:thread withObject:nil waitUntilDone:NO];
     });
 }
 
 
 - (void)processMemoryWarningUnlocked {
-    [self setIsObservingUnlocked:NO];
-    [_value release], _value = nil;
+    // TODO: must be checked when resolvation algorithm is changed.
     _resolved = NO;
+    [_value release], _value = nil;
 }
 
 @end
@@ -227,9 +236,6 @@ BOOL IKMemoryAwareFutureIsObserving(id future) {
     return [future isObserving];
 }
 
-#pragma mark -
-#pragma mark Archiving IKMAFutures
-
 NSString* IKMemoryAwareFuturesDirectory() {
     static NSString* FuturesDirectory = nil;
     if (FuturesDirectory == nil) {
@@ -245,23 +251,24 @@ NSString* IKMemoryAwareFuturePath(id future) {
 @implementation _IKAutoArchivingMemoryAwareFuture
 
 + (void)initialize {
-    
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    NSString *futuresDirectory = IKMemoryAwareFuturesDirectory();
+    if (self == [_IKAutoArchivingMemoryAwareFuture class]) {
+        NSFileManager *fileManager = [NSFileManager defaultManager];
+        NSString *futuresDirectory = IKMemoryAwareFuturesDirectory();
 #if ENABLE_LOGGING
-    NSError *error = nil;
-    if (![fileManager removeItemAtPath:futuresDirectory error:&error]) {
-        LOG(@"IKAAMAF: Error is occured while trying to remove old futures directory at path \"%@\": %@",
-            futuresDirectory, [error localizedDescription]);
-    }
-    if (![fileManager createDirectoryAtPath:futuresDirectory withIntermediateDirectories:NO attributes:nil error:&error]) {
-        LOG(@"IKAAMAF: Error is occured while trying to create temporary directory for futures at path \"%@\": %@",
-            futuresDirectory, [error localizedDescription]);
-    }
+        NSError *error = nil;
+        if (![fileManager removeItemAtPath:futuresDirectory error:&error]) {
+            LOG(@"IKAAMAF: Error is occured while trying to remove old futures directory at path \"%@\": %@",
+                futuresDirectory, [error localizedDescription]);
+        }
+        if (![fileManager createDirectoryAtPath:futuresDirectory withIntermediateDirectories:NO attributes:nil error:&error]) {
+            LOG(@"IKAAMAF: Error is occured while trying to create temporary directory for futures at path \"%@\": %@",
+                futuresDirectory, [error localizedDescription]);
+        }
 #else
-    [fileManager removeItemAtPath:futuresDirectory error:NULL];
-    [fileManager createDirectoryAtPath:futuresDirectory withIntermediateDirectories:NO attributes:nil error:NULL];
+        [fileManager removeItemAtPath:futuresDirectory error:NULL];
+        [fileManager createDirectoryAtPath:futuresDirectory withIntermediateDirectories:NO attributes:nil error:NULL];
 #endif
+    }
 }
 
 
@@ -284,12 +291,9 @@ NSString* IKMemoryAwareFuturePath(id future) {
     if(![self futureHasResolved])
     {
         // Try to decode object from file.
-        if (![self decodeValueUnlocked]) {
+        if (![self unarchiveValueUnlocked]) {
             // If cannot to decode object, create it.
             [self setFutureValueUnlocked: _block()];
-        }
-        else {
-            _resolved = YES;
         }
         
         if (!isManuallyStopped) {
@@ -302,20 +306,12 @@ NSString* IKMemoryAwareFuturePath(id future) {
 
 
 - (void)processMemoryWarningUnlocked {
-    [self encodeValueUnlocked];
+    [self archiveValueUnlocked];
     [super processMemoryWarningUnlocked];
 }
 
 
-- (BOOL)encodeValue {
-    [_lock lock];
-    BOOL result = [self encodeValueUnlocked];
-    [_lock unlock];
-    return result;
-}
-
-
-- (BOOL)encodeValueUnlocked {
+- (BOOL)archiveValueUnlocked {
 #if ENABLE_LOGGING
     BOOL result = [NSKeyedArchiver archiveRootObject:_value toFile:IKMemoryAwareFuturePath(self)];
     if (!result) {
@@ -328,23 +324,17 @@ NSString* IKMemoryAwareFuturePath(id future) {
 }
 
 
-- (BOOL)decodeValue {
-    [_lock lock];
-    BOOL result = [self decodeValueUnlocked];
-    [_lock unlock];
-    return result;
-}
-
-
-- (BOOL)decodeValueUnlocked {
-    _value = [[NSKeyedUnarchiver unarchiveObjectWithFile:IKMemoryAwareFuturePath(self)] retain];
+- (BOOL)unarchiveValueUnlocked {
+    id value = [[NSKeyedUnarchiver unarchiveObjectWithFile:IKMemoryAwareFuturePath(self)] retain];
+    if (value != nil) {
+        [self setFutureValueUnlocked:value];
+    }
 #if ENABLE_LOGGING
-    if (_value == nil) {
+    else {
         LOG(@"IKAAMAF: Cannot decode value at path \"%@\"", IKMemoryAwareFuturePath(self));
     }
 #endif
-    _resolved = (_value != nil);
-    return _resolved;
+    return [self futureHasResolved];
 }
 
 @end

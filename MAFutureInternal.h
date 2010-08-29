@@ -18,33 +18,24 @@
 #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
 #if __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
 
-/*
- Subclassing Notes:
- 
- Template for resolveFuture method:
- [_lock lock];
- if(![self futureHasResolved])
- {
-    
-    // ---> Insert your code here <---
-    // Somewhere in your code you should place [self setFutureValueUnlocked: _block()];
- 
-    if (!isManuallyStopped) {
-        [self setIsObservingUnlocked:YES];
-    }
- }
- [_lock unlock];
- return _value;
- */
 @interface _IKMemoryAwareFuture : _MALazyBlockFuture {
     BOOL isObserving;
     BOOL isManuallyStopped;
 }
-
+/*
+  @abstract Use this property to control observing of memory warning notifications.
+ */
 @property BOOL isObserving;
 
+/*
+  @abstract Called in response to UIApplicationDidReceiveMemoryWarningNotification.
+  @discussion Starts processMemoryWarningUnlocked on background thread.
+ */
 - (void)processMemoryWarning;
 
+/*
+  @abstract Releases future and sets _resolved to NO.
+ */
 - (void)processMemoryWarningUnlocked;
 
 /*
@@ -63,21 +54,16 @@ NSString* IKMemoryAwareFuturePath(id future);
 @interface _IKAutoArchivingMemoryAwareFuture : _IKMemoryAwareFuture
 
 /*
-  @abstract Encode value while holding the lock
+  @abstract Archives value to the disk.
+  @result YES if value is archived without errors. Otherwise NO.
 */
-- (BOOL)encodeValue;
+- (BOOL)archiveValueUnlocked;
+
 /*
-  @abstract Encode value without holding the lock
+  @abstract Unarchives value from the disk.
+  @result YES if value is unarchived without errors. If either archive for future doesn't exist or error is occured, returns NO. 
 */
-- (BOOL)encodeValueUnlocked;
-/*
-  @abstract Decode value while holding the lock
-*/
-- (BOOL)decodeValue;
-/*
-  @abstract Decode value without holding the lock
-*/
-- (BOOL)decodeValueUnlocked;
+- (BOOL)unarchiveValueUnlocked;
 
 @end
 
