@@ -122,7 +122,7 @@ id MALazyFuture(id (^block)(void))
 #pragma mark iOS Futures
 
 #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
-#if __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
+#if (TARGET_IPHONE_SIMULATOR && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_3_2) || __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
 
 @implementation _IKMemoryAwareFuture
 @synthesize isObserving;
@@ -253,7 +253,7 @@ NSString* IKMemoryAwareFuturePath(id future) {
 @implementation _IKAutoArchivingMemoryAwareFuture
 
 + (void)initialize {
-    if (self == [_IKAutoArchivingMemoryAwareFuture class]) {
+    if ([NSStringFromClass(self) isEqualToString:@"_IKAutoArchivingMemoryAwareFuture"]) {
         NSFileManager *fileManager = [NSFileManager defaultManager];
         NSString *futuresDirectory = IKMemoryAwareFuturesDirectory();
 #if ENABLE_LOGGING
@@ -352,5 +352,5 @@ id IKAutoArchivingMemoryAwareFuture(id (^block)(void)) {
     return [IKAutoArchivingMemoryAwareFutureCreate(block) autorelease];
 }
 
-#endif // __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
+#endif // (TARGET_IPHONE_SIMULATOR && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_3_2) || __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
 #endif // __IPHONE_OS_VERSION_MIN_REQUIRED

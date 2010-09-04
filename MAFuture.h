@@ -7,7 +7,7 @@ id MALazyFuture(id (^block)(void));
 
 
 #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
-#if __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
+#if (TARGET_IPHONE_SIMULATOR && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_3_2) || __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
 
 #pragma mark -
 
@@ -29,5 +29,5 @@ id IKAutoArchivingMemoryAwareFutureCreate(id (^block)(void));
 
 #define IKAutoArchivingMemoryAwareFutureCreate(...)((__typeof((__VA_ARGS__)()))IKAutoArchivingMemoryAwareFutureCreate((id (^)(void))(__VA_ARGS__)))
 
-#endif // __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
+#endif // (TARGET_IPHONE_SIMULATOR && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_3_2) || __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
 #endif // __IPHONE_OS_VERSION_MIN_REQUIRED
