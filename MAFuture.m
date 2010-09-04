@@ -125,15 +125,18 @@ id MALazyFuture(id (^block)(void))
 #if __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
 
 @implementation _IKMemoryAwareFuture
-@dynamic isObserving;
+@synthesize isObserving;
+@dynamic countOfUsers;
 
-- (BOOL)isObserving {
-    return isObserving;
+- (NSInteger)countOfUsers {
+    return countOfUsers;
 }
 
 
-- (void)setIsObserving:(BOOL)newIsObserving {
+- (void)setCountOfUsers:(NSInteger)newCountOfUsers {
     [_lock lock];
+    countOfUsers = newCountOfUsers < 0 ? 0 : newCountOfUsers;
+    BOOL newIsObserving = (countOfUsers == 0);
     if (newIsObserving && isManuallyStopped) {
         isManuallyStopped = NO;
         if ([self futureHasResolved]) {
@@ -160,7 +163,6 @@ id MALazyFuture(id (^block)(void))
 
 
 - (void)setIsObservingUnlocked:(BOOL)newIsObserving {
-    
     if (isObserving != newIsObserving) {
         if (newIsObserving) {
             [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(processMemoryWarning) 
@@ -224,12 +226,12 @@ id IKMemoryAwareFuture(id (^block)(void)) {
     return [IKMemoryAwareFutureCreate(block) autorelease];
 }
 
-void IKMemoryAwareFutureStartObserving(id future) {
-    [future setIsObserving:YES];
+void IKMemoryAwareFutureBeginContentAccess(id future) {
+    ((_IKMemoryAwareFuture *)future).countOfUsers += 1;
 }
 
-void IKMemoryAwareFutureStopObserving(id future) {
-    [future setIsObserving:NO];
+void IKMemoryAwareFutureEndContentAccess(id future) {
+    ((_IKMemoryAwareFuture *)future).countOfUsers -= 1;
 }
 
 BOOL IKMemoryAwareFutureIsObserving(id future) {

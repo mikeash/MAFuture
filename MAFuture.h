@@ -13,8 +13,8 @@ id MALazyFuture(id (^block)(void));
 
 id IKMemoryAwareFuture(id (^block)(void));
 id IKMemoryAwareFutureCreate(id (^block)(void));
-void IKMemoryAwareFutureStartObserving(id future);
-void IKMemoryAwareFutureStopObserving(id future);
+void IKMemoryAwareFutureBeginContentAccess(id future);
+void IKMemoryAwareFutureEndContentAccess(id future);
 BOOL IKMemoryAwareFutureIsObserving(id future);
 
 #define IKMemoryAwareFuture(...)((__typeof((__VA_ARGS__)()))IKMemoryAwareFuture((id (^)(void))(__VA_ARGS__)))

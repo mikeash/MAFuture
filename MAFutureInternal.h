@@ -21,11 +21,16 @@
 @interface _IKMemoryAwareFuture : _MALazyBlockFuture {
     BOOL isObserving;
     BOOL isManuallyStopped;
+    NSInteger countOfUsers;
 }
 /*
-  @abstract Use this property to control observing of memory warning notifications.
+  @abstract Use this property to check if future is observing memory warning notification or not.
  */
-@property BOOL isObserving;
+@property (readonly) BOOL isObserving;
+/*
+  @abstract Use this property to control observing of memory warning notifications. Instead of isObserving, it automatically disables observing when countOfUsers > 0 and reenables when countOfUsers == 0.
+ */
+@property NSInteger countOfUsers;
 
 /*
   @abstract Called in response to UIApplicationDidReceiveMemoryWarningNotification.
