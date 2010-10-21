@@ -3,11 +3,11 @@
 
 @interface MAMethodSignatureCache : NSObject
 {
-#ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
+#ifdef __IPHONE_4_0
     CFMutableDictionaryRef _cache;
 #else
     NSMapTable *_cache;
-#endif
+#endif // __IPHONE_4_0
     NSRecursiveLock *_lock;
 }
 

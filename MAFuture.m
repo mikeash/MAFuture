@@ -121,8 +121,7 @@ id MALazyFuture(id (^block)(void))
 #pragma mark -
 #pragma mark iOS Futures
 
-#ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
-#if (TARGET_IPHONE_SIMULATOR && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_3_2) || __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
+#ifdef __IPHONE_4_0
 
 @implementation _IKMemoryAwareFuture
 @synthesize isObserving;
@@ -200,11 +199,8 @@ id MALazyFuture(id (^block)(void))
 - (void)processMemoryWarning {
     [_lock lock];
     [self setIsObservingUnlocked:NO];
-    NSThread *thread = [NSThread currentThread];
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        [self processMemoryWarningUnlocked];
-        [_lock performSelector:@selector(unlock) onThread:thread withObject:nil waitUntilDone:NO];
-    });
+    [self processMemoryWarningUnlocked];
+    [_lock unlock];
 }
 
 
@@ -236,6 +232,10 @@ void IKMemoryAwareFutureEndContentAccess(id future) {
 
 BOOL IKMemoryAwareFutureIsObserving(id future) {
     return [future isObserving];
+}
+
+void IKInvalidateMemoryAwareFuture(id future) {
+    [future processMemoryWarning];
 }
 
 NSString* IKMemoryAwareFuturesDirectory() {
@@ -352,5 +352,4 @@ id IKAutoArchivingMemoryAwareFuture(id (^block)(void)) {
     return [IKAutoArchivingMemoryAwareFutureCreate(block) autorelease];
 }
 
-#endif // (TARGET_IPHONE_SIMULATOR && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_3_2) || __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_3_2
-#endif // __IPHONE_OS_VERSION_MIN_REQUIRED
+#endif // __IPHONE_4_0
