@@ -205,6 +205,10 @@ id MALazyFuture(id (^block)(void))
 
 
 - (void)processMemoryWarningUnlocked {
+    [self invalidate];
+}
+
+- (void)invalidate {
     // TODO: must be checked when resolvation algorithm is changed.
     _resolved = NO;
     [_value release], _value = nil;
@@ -235,7 +239,7 @@ BOOL IKMemoryAwareFutureIsObserving(id future) {
 }
 
 void IKInvalidateMemoryAwareFuture(id future) {
-    [future processMemoryWarning];
+    [future invalidate];
 }
 
 NSString* IKMemoryAwareFuturesDirectory() {

@@ -39,8 +39,14 @@
 
 /*
   @abstract Releases future and sets _resolved to NO.
+  @discussion If you just want to release future, call 'invalidate' method instead.
  */
 - (void)processMemoryWarningUnlocked;
+
+/*
+ @abstract Releases future and sets _resolved to NO.
+ */
+- (void)invalidate;
 
 /*
  @abstract Called whenever isObserver variable is changed.
