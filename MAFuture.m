@@ -205,13 +205,18 @@ id MALazyFuture(id (^block)(void))
 
 
 - (void)processMemoryWarningUnlocked {
-    [self invalidate];
+    // TODO: must be checked when resolvation algorithm is changed.
+    _resolved = NO;
+    [_value release], _value = nil;
 }
 
 - (void)invalidate {
     // TODO: must be checked when resolvation algorithm is changed.
+    [_lock lock];
+    [self setIsObservingUnlocked:NO];
     _resolved = NO;
     [_value release], _value = nil;
+    [_lock unlock];
 }
 
 @end
