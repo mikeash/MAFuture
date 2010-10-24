@@ -210,13 +210,19 @@ id MALazyFuture(id (^block)(void))
     [_value release], _value = nil;
 }
 
+
 - (void)invalidate {
-    // TODO: must be checked when resolvation algorithm is changed.
     [_lock lock];
+    [self invalidateUnlocked];
+    [_lock unlock];
+}
+
+
+- (void)invalidateUnlocked {
+    // TODO: must be checked when resolvation algorithm is changed.
     [self setIsObservingUnlocked:NO];
     _resolved = NO;
     [_value release], _value = nil;
-    [_lock unlock];
 }
 
 @end
@@ -346,6 +352,12 @@ NSString* IKMemoryAwareFuturePath(id future) {
     }
 #endif
     return [self futureHasResolved];
+}
+
+
+- (void)invalidateUnlocked {
+    [super invalidateUnlocked];
+    [[NSFileManager defaultManager] removeItemAtPath:IKMemoryAwareFuturePath(self) error:NULL];
 }
 
 @end

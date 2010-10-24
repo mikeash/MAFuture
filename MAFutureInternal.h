@@ -48,6 +48,8 @@
  */
 - (void)invalidate;
 
+- (void)invalidateUnlocked;
+
 /*
  @abstract Called whenever isObserver variable is changed.
  @discussion You should not call this function directly from your code. Instead, you should use isObserving property 
