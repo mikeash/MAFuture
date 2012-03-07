@@ -121,6 +121,8 @@ id MALazyFuture(id (^block)(void))
 #pragma mark -
 #pragma mark iOS Futures
 
+#if TARGET_OS_IPHONE > 0
+
 #ifdef __IPHONE_4_0
 
 @implementation _IKMemoryAwareFuture
@@ -374,3 +376,5 @@ id IKAutoArchivingMemoryAwareFuture(id (^block)(void)) {
 }
 
 #endif // __IPHONE_4_0
+
+#endif
