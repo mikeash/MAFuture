@@ -4,6 +4,7 @@
 #import "MAFuture.h"
 #import "MAFutureInternal.h"
 #import "MAMethodSignatureCache.h"
+#import "MACompoundFuture.h"
 
 
 #define ENABLE_LOGGING 0
