@@ -6,6 +6,8 @@ id MALazyFuture(id (^block)(void));
 #define MALazyFuture(...) ((__typeof((__VA_ARGS__)()))MALazyFuture((id (^)(void))(__VA_ARGS__)))
 
 
+#if TARGET_OS_IPHONE > 0
+
 #ifdef __IPHONE_4_0
 
 #pragma mark -
@@ -30,3 +32,5 @@ id IKAutoArchivingMemoryAwareFutureCreate(id (^block)(void));
 #define IKAutoArchivingMemoryAwareFutureCreate(...)((__typeof((__VA_ARGS__)()))IKAutoArchivingMemoryAwareFutureCreate((id (^)(void))(__VA_ARGS__)))
 
 #endif // __IPHONE_4_0
+
+#endif
